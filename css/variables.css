@@ -1,0 +1,93 @@
+:root {
+  /* Colors */
+  --color-primary: #C1272D;     /* Moroccan Red */
+  --color-primary-light: #E45A5F;
+  --color-primary-dark: #8F1D22;
+  
+  --color-secondary: #006233;   /* Moroccan Green */
+  --color-secondary-light: #007F42;
+  --color-secondary-dark: #004523;
+  
+  --color-accent: #D4AF37;      /* Gold */
+  --color-accent-light: #E9C757;
+  --color-accent-dark: #B38F1D;
+  
+  --color-white: #FFFFFF;
+  --color-off-white: #F8F5F1;
+  --color-light-gray: #E8E4DD;
+  --color-gray: #8A8A8A;
+  --color-dark-gray: #444444;
+  --color-black: #1A1A1A;
+  
+  --color-success: #34A853;
+  --color-warning: #FBBC05;
+  --color-error: #EA4335;
+  --color-info: #4285F4;
+  
+  /* Typography */
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Montserrat', sans-serif;
+  
+  --font-size-xs: 0.75rem;     /* 12px */
+  --font-size-sm: 0.875rem;    /* 14px */
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-md: 1.125rem;    /* 18px */
+  --font-size-lg: 1.25rem;     /* 20px */
+  --font-size-xl: 1.5rem;      /* 24px */
+  --font-size-2xl: 2rem;       /* 32px */
+  --font-size-3xl: 2.5rem;     /* 40px */
+  --font-size-4xl: 3rem;       /* 48px */
+  --font-size-5xl: 4rem;       /* 64px */
+  
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Spacing System (based on 8px) */
+  --space-1: 0.25rem;          /* 4px */
+  --space-2: 0.5rem;           /* 8px */
+  --space-3: 0.75rem;          /* 12px */
+  --space-4: 1rem;             /* 16px */
+  --space-5: 1.5rem;           /* 24px */
+  --space-6: 2rem;             /* 32px */
+  --space-7: 2.5rem;           /* 40px */
+  --space-8: 3rem;             /* 48px */
+  --space-9: 4rem;             /* 64px */
+  --space-10: 5rem;            /* 80px */
+  --space-11: 6rem;            /* 96px */
+  --space-12: 8rem;            /* 128px */
+  
+  /* Borders */
+  --border-radius-sm: 0.25rem;  /* 4px */
+  --border-radius-md: 0.5rem;   /* 8px */
+  --border-radius-lg: 1rem;     /* 16px */
+  --border-radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow: 500ms ease;
+  
+  /* Container widths */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  
+  /* Z-index */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+}

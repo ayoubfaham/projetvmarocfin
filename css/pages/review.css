@@ -1,0 +1,198 @@
+/* Review Page Styles */
+
+/* Review Form Section */
+.review-form-section {
+  padding-top: 120px;
+  background-color: var(--color-off-white);
+}
+
+.review-form-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Star Rating Styles */
+.rating-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.star-rating {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  position: relative;
+}
+
+.star-rating input {
+  display: none;
+}
+
+.star-rating label {
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="%23E0E0E0"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 36px;
+  transition: background-image var(--transition-fast);
+}
+
+.star-rating input:checked ~ label,
+.star-rating label:hover,
+.star-rating label:hover ~ label {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="%23D4AF37"/></svg>');
+}
+
+.rating-input.small .star-rating label {
+  width: 30px;
+  height: 30px;
+  background-size: 28px;
+}
+
+/* Form Help Text */
+.form-help {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray);
+  margin-top: var(--space-1);
+  margin-bottom: 0;
+}
+
+/* Radio Group */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.radio-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+}
+
+/* Additional Questions */
+.additional-questions {
+  background-color: rgba(212, 175, 55, 0.05);
+  padding: var(--space-5);
+  border-radius: var(--border-radius-md);
+  margin: var(--space-5) 0;
+  border-left: 3px solid var(--color-accent);
+  transition: all var(--transition-normal);
+}
+
+.additional-questions h3 {
+  margin-top: 0;
+  color: var(--color-accent-dark);
+}
+
+/* Consent Checkbox */
+.consent-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.consent-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 4px;
+}
+
+.consent-check label {
+  margin-bottom: 0;
+}
+
+/* Reviews List Page */
+.reviews-list-section {
+  padding-top: 120px;
+}
+
+.reviews-filter {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.filter-group label {
+  font-weight: var(--font-weight-medium);
+}
+
+.reviews-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.review-card-large {
+  padding: var(--space-6);
+}
+
+.load-more-container {
+  text-align: center;
+  margin-top: var(--space-6);
+}
+
+/* Success Message */
+.success-message {
+  background-color: rgba(52, 168, 83, 0.1);
+  border-left: 3px solid var(--color-success);
+  padding: var(--space-5);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--space-6);
+  display: none;
+}
+
+.success-message h3 {
+  color: var(--color-success);
+  margin-top: 0;
+}
+
+.success-message.visible {
+  display: block;
+  animation: fadeIn var(--transition-normal) forwards;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .reviews-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .star-rating label {
+    width: 30px;
+    height: 30px;
+    background-size: 28px;
+  }
+  
+  .review-form-container .form {
+    padding: var(--space-4);
+  }
+  
+  .additional-questions {
+    padding: var(--space-4);
+  }
+}
+
+/* Hidden Class */
+.hidden {
+  display: none;
+}

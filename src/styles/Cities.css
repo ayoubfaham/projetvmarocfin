@@ -1,0 +1,117 @@
+.cities-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.filters {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.search-input,
+.region-select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.region-select {
+  min-width: 150px;
+}
+
+.cities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.city-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.city-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.city-card h2 {
+  color: #2c3e50;
+  margin: 0 0 15px 0;
+  font-size: 24px;
+}
+
+.city-info {
+  color: #34495e;
+}
+
+.city-info p {
+  margin: 8px 0;
+}
+
+.region {
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.population {
+  font-weight: bold;
+  color: #2980b9;
+}
+
+.description {
+  margin: 15px 0;
+  line-height: 1.5;
+}
+
+.landmarks {
+  margin-top: 15px;
+}
+
+.landmarks h3 {
+  color: #2c3e50;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.landmarks ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.landmarks li {
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.landmarks li:last-child {
+  border-bottom: none;
+}
+
+.coordinates {
+  margin-top: 15px;
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+@media (max-width: 768px) {
+  .filters {
+    flex-direction: column;
+  }
+  
+  .cities-grid {
+    grid-template-columns: 1fr;
+  }
+} 

@@ -1,0 +1,452 @@
+:root {
+    --primary-color: #ff6b6b;
+    --primary-dark: #ff5252;
+    --background-light: #f8f9fa;
+    --background-dark: #343a40;
+    --text-color: #212529;
+    --text-light: #6c757d;
+    --text-lighter: #adb5bd;
+    --shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* City Header */
+.city-header {
+    background: linear-gradient(rgba(45, 50, 80, 0.9), rgba(45, 50, 80, 0.9)), url('../images/cities/casablanca.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    color: white;
+    padding: 10rem 1.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.city-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
+}
+
+.city-header h1 {
+    font-size: 4.5rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    animation: fadeInUp 1s ease-out;
+    letter-spacing: -0.03em;
+}
+
+.city-header p {
+    font-size: 1.5rem;
+    max-width: 700px;
+    margin: 0 auto;
+    color: var(--gray-200);
+    position: relative;
+    animation: fadeInUp 1s ease-out 0.2s backwards;
+    line-height: 1.6;
+}
+
+/* Search Section */
+.search-section {
+    background: rgba(255, 255, 255, 0.98);
+    padding: 1.75rem;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    backdrop-filter: blur(10px);
+}
+
+.search-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    gap: 1.25rem;
+}
+
+.search-container input {
+    flex: 1;
+    padding: 1.25rem 1.75rem;
+    border: 2px solid var(--gray-200);
+    border-radius: 1rem;
+    font-size: 1.125rem;
+    transition: var(--transition);
+    background: var(--gray-50);
+}
+
+.search-container input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(247, 110, 17, 0.1);
+}
+
+/* Categories */
+.categories {
+    padding: 1.75rem;
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.categories-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    gap: 1.25rem;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.categories-container::-webkit-scrollbar {
+    display: none;
+}
+
+.category-btn {
+    padding: 1rem 2rem;
+    background: var(--gray-50);
+    border: none;
+    border-radius: 9999px;
+    color: var(--gray-700);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+    font-size: 1.125rem;
+}
+
+.category-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(rgba(255, 255, 255, 0.1), transparent);
+    transform: translateY(-100%);
+    transition: var(--transition);
+}
+
+.category-btn:hover {
+    background: var(--gray-200);
+    transform: translateY(-2px);
+}
+
+.category-btn:hover::before {
+    transform: translateY(0);
+}
+
+.category-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* Places Grid */
+.places-section {
+    padding: 5rem 1.5rem;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.places-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 2.5rem;
+}
+
+.place-card {
+    background: white;
+    border-radius: 1.5rem;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    position: relative;
+}
+
+.place-card:hover {
+    transform: translateY(-10px);
+    box-shadow: var(--shadow-lg);
+}
+
+.place-image {
+    position: relative;
+    height: 280px;
+    overflow: hidden;
+}
+
+.place-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: var(--transition);
+}
+
+.place-card:hover .place-image img {
+    transform: scale(1.1);
+}
+
+.place-category {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-size: 1rem;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+}
+
+.place-info {
+    padding: 2rem;
+}
+
+.place-info h3 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.place-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.place-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--accent);
+}
+
+.place-rating i {
+    font-size: 1.5rem;
+}
+
+.place-price {
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.place-address {
+    color: var(--gray-600);
+    font-size: 1rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.place-address i {
+    color: var(--gray-400);
+}
+
+.see-more-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    border-radius: 1rem;
+    font-weight: 600;
+    transition: var(--transition);
+    font-size: 1.125rem;
+}
+
+.see-more-btn:hover {
+    background: var(--accent-dark);
+    transform: translateY(-2px);
+}
+
+.see-more-btn i {
+    transition: var(--transition);
+}
+
+.see-more-btn:hover i {
+    transform: translateX(4px);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 4rem;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.page-number {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--gray-200);
+    border-radius: 1rem;
+    color: var(--gray-700);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    background: white;
+    font-size: 1.125rem;
+}
+
+.page-number:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-300);
+    transform: translateY(-2px);
+}
+
+.page-number.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.pagination-btn {
+    padding: 1rem 2rem;
+    border: 2px solid var(--gray-200);
+    border-radius: 1rem;
+    color: var(--gray-700);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    background: white;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.125rem;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: var(--gray-50);
+    border-color: var(--gray-300);
+    transform: translateY(-2px);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .city-header h1 {
+        font-size: 3.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .city-header {
+        padding: 8rem 1.5rem;
+    }
+
+    .city-header h1 {
+        font-size: 3rem;
+    }
+
+    .city-header p {
+        font-size: 1.25rem;
+    }
+
+    .search-container {
+        flex-direction: column;
+    }
+
+    .places-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .city-header {
+        padding: 6rem 1.5rem;
+    }
+
+    .city-header h1 {
+        font-size: 2.5rem;
+    }
+
+    .categories-container {
+        padding-bottom: 1.25rem;
+    }
+
+    .page-numbers {
+        display: none;
+    }
+}
+
+/* Footer */
+.footer-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 40px;
+    padding: 40px 20px;
+    background-color: var(--background-dark);
+    color: white;
+}
+
+.footer-section h3 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.social-links {
+    display: flex;
+    gap: 15px;
+}
+
+.social-links a {
+    color: white;
+    font-size: 1.5rem;
+    transition: color 0.3s ease;
+}
+
+.social-links a:hover {
+    color: var(--primary-color);
+}
+
+.footer-bottom {
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.2);
+    color: white;
+} 
