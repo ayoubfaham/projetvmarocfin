@@ -34,26 +34,60 @@ $reviews = $reviews->fetchAll(PDO::FETCH_ASSOC);
 $equipements = isset($place['equipements']) ? array_map('trim', explode(',', $place['equipements'])) : [];
 $boutiques = isset($place['boutiques_services']) ? array_map('trim', explode(',', $place['boutiques_services'])) : [];
 
+// Vérifier si l'utilisateur a déjà laissé un avis pour ce lieu
+$userHasReview = false;
+$userReview = null;
+
+if (isset($_SESSION['user_id'])) {
+    $stmt = $pdo->prepare("SELECT * FROM avis WHERE id_utilisateur = ? AND id_lieu = ?");
+    $stmt->execute([$_SESSION['user_id'], $placeId]);
+    $userReview = $stmt->fetch(PDO::FETCH_ASSOC);
+    $userHasReview = ($userReview !== false);
+}
+
+// Traitement de l'ajout ou de la modification d'un avis
 if (isset($_POST['add_review']) && isset($_SESSION['user_id'])) {
     $rating = (int)$_POST['rating'];
+    $commentaire = trim($_POST['commentaire'] ?? '');
     $id_utilisateur = $_SESSION['user_id'];
     $id_lieu = $place['id'];
 
     if ($rating >= 1 && $rating <= 5) {
-        $stmt = $pdo->prepare("INSERT INTO avis (id_utilisateur, id_lieu, rating, date_creation) VALUES (?, ?, ?, NOW())");
-        $stmt->execute([$id_utilisateur, $id_lieu, $rating]);
-        $success_message = "Votre note a bien été enregistrée !";
+        try {
+            if ($userHasReview) {
+                // Mise à jour de l'avis existant
+                $stmt = $pdo->prepare("UPDATE avis SET rating = ?, commentaire = ? WHERE id_utilisateur = ? AND id_lieu = ?");
+                $stmt->execute([$rating, $commentaire, $id_utilisateur, $id_lieu]);
+                $success_message = "Votre avis a bien été mis à jour !";
+            } else {
+                // Insertion d'un nouvel avis
+                $stmt = $pdo->prepare("INSERT INTO avis (id_utilisateur, id_lieu, rating, commentaire, date_creation) VALUES (?, ?, ?, ?, NOW())");
+                $stmt->execute([$id_utilisateur, $id_lieu, $rating, $commentaire]);
+                $success_message = "Votre avis a bien été enregistré !";
+            }
+            
+            // Mise à jour de la note moyenne du lieu
+            $stmt = $pdo->prepare("SELECT AVG(rating) as moyenne FROM avis WHERE id_lieu = ?");
+            $stmt->execute([$id_lieu]);
+            $moyenne = $stmt->fetchColumn();
 
-        // Après l'insertion du nouvel avis
-        $stmt = $pdo->prepare("SELECT AVG(rating) as moyenne FROM avis WHERE id_lieu = ?");
-        $stmt->execute([$id_lieu]);
-        $moyenne = $stmt->fetchColumn();
-
-        $stmt = $pdo->prepare("UPDATE lieux SET rating = ? WHERE id = ?");
-        $stmt->execute([$moyenne, $id_lieu]);
+            $stmt = $pdo->prepare("UPDATE lieux SET rating = ? WHERE id = ?");
+            $stmt->execute([$moyenne, $id_lieu]);
+            
+            // Rafraichir la page pour voir les changements
+            header("Location: place.php?id=" . $placeId . "&success=1");
+            exit;
+        } catch (PDOException $e) {
+            $error_message = "Une erreur est survenue : " . $e->getMessage();
+        }
     } else {
-        $error_message = "Veuillez sélectionner une note.";
+        $error_message = "Veuillez sélectionner une note entre 1 et 5.";
     }
+}
+
+// Message de succès après redirection
+if (isset($_GET['success']) && $_GET['success'] == 1) {
+    $success_message = "Votre avis a bien été enregistré !";
 }
 ?>
 <!DOCTYPE html>
@@ -376,20 +410,134 @@ if (isset($_POST['add_review']) && isset($_SESSION['user_id'])) {
             </div>
             <div class="services">
                 <h2>Avis des visiteurs</h2>
-                <?php if (!empty($reviews)): ?>
-                    <?php foreach ($reviews as $review): ?>
-                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-                            <span style="font-weight:600; color:#333; min-width:90px;"><?= htmlspecialchars($review['user_nom']) ?></span>
-                            <span>
-                                <?php for($i=1;$i<=5;$i++): ?>
-                                    <i class="fa fa-star" style="color:<?= $i <= $review['rating'] ? '#f1c40f' : '#ccc' ?>;"></i>
-                                <?php endfor; ?>
-                            </span>
-                            <span style="color:#888; font-size:0.97em; margin-left:8px;"> <?= date('j F Y', strtotime($review['date_creation'])) ?> </span>
-                        </div>
-                    <?php endforeach; ?>
+                
+                <?php if (isset($success_message)): ?>
+                    <div class="alert alert-success" style="background-color: #d4edda; color: #155724; padding: 12px; border-radius: 5px; margin-bottom: 20px;">
+                        <?= htmlspecialchars($success_message) ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (isset($error_message)): ?>
+                    <div class="alert alert-danger" style="background-color: #f8d7da; color: #721c24; padding: 12px; border-radius: 5px; margin-bottom: 20px;">
+                        <?= htmlspecialchars($error_message) ?>
+                    </div>
+                <?php endif; ?>
+                
+                <!-- Formulaire d'ajout d'avis -->
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <div class="review-form" style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+                        <h3 style="font-size: 1.2rem; margin-bottom: 15px;"><?= $userHasReview ? 'Modifier votre avis' : 'Ajouter votre avis' ?></h3>
+                        <form method="post" action="place.php?id=<?= $placeId ?>">
+                            <input type="hidden" name="add_review" value="1">
+                            <div style="margin-bottom: 15px;">
+                                <label for="rating" style="display: block; margin-bottom: 5px; font-weight: 500;">Votre note :</label>
+                                <div class="rating-select" style="display: flex; gap: 10px;">
+                                    <?php for($i=1; $i<=5; $i++): ?>
+                                        <label style="cursor: pointer;">
+                                            <input type="radio" name="rating" value="<?= $i ?>" <?= ($userHasReview && $userReview['rating'] == $i) ? 'checked' : '' ?> style="display: none;">
+                                            <i class="fa fa-star" style="font-size: 24px; color: <?= ($userHasReview && $userReview['rating'] >= $i) ? '#f1c40f' : '#ccc' ?>;"></i>
+                                        </label>
+                                    <?php endfor; ?>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label for="commentaire" style="display: block; margin-bottom: 5px; font-weight: 500;">Votre commentaire :</label>
+                                <textarea name="commentaire" id="commentaire" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;"><?= $userHasReview ? htmlspecialchars($userReview['commentaire']) : '' ?></textarea>
+                            </div>
+                            <button type="submit" class="btn-primary" style="padding: 10px 20px;">
+                                <?= $userHasReview ? 'Modifier mon avis' : 'Publier mon avis' ?>
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const stars = document.querySelectorAll('.rating-select label');
+                        stars.forEach((star, index) => {
+                            star.addEventListener('mouseover', function() {
+                                // Highlight stars on hover
+                                for (let i = 0; i <= index; i++) {
+                                    stars[i].querySelector('i').style.color = '#f1c40f';
+                                }
+                                for (let i = index + 1; i < stars.length; i++) {
+                                    stars[i].querySelector('i').style.color = '#ccc';
+                                }
+                            });
+                            
+                            star.addEventListener('click', function() {
+                                // Set the selected rating
+                                star.querySelector('input').checked = true;
+                                // Keep the stars highlighted
+                                for (let i = 0; i <= index; i++) {
+                                    stars[i].querySelector('i').style.color = '#f1c40f';
+                                }
+                                for (let i = index + 1; i < stars.length; i++) {
+                                    stars[i].querySelector('i').style.color = '#ccc';
+                                }
+                            });
+                        });
+                        
+                        // Reset stars when mouse leaves the rating area
+                        const ratingSelect = document.querySelector('.rating-select');
+                        ratingSelect.addEventListener('mouseleave', function() {
+                            stars.forEach((star, index) => {
+                                const input = star.querySelector('input');
+                                if (input.checked) {
+                                    // Keep selected stars highlighted
+                                    for (let i = 0; i <= index; i++) {
+                                        stars[i].querySelector('i').style.color = '#f1c40f';
+                                    }
+                                    for (let i = index + 1; i < stars.length; i++) {
+                                        stars[i].querySelector('i').style.color = '#ccc';
+                                    }
+                                } else {
+                                    // Reset to initial state based on user's review
+                                    const userRating = <?= $userHasReview ? $userReview['rating'] : 0 ?>;
+                                    if (index < userRating) {
+                                        star.querySelector('i').style.color = '#f1c40f';
+                                    } else {
+                                        star.querySelector('i').style.color = '#ccc';
+                                    }
+                                }
+                            });
+                        });
+                    });
+                    </script>
                 <?php else: ?>
-                    <p style="color:#888;">Aucun avis pour ce lieu. Soyez le premier à donner votre note !</p>
+                    <div class="login-prompt" style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+                        <p style="margin-bottom: 10px;">Connectez-vous pour laisser votre avis sur ce lieu.</p>
+                        <a href="login.php?redirect=place.php?id=<?= $placeId ?>" class="btn-outline" style="display: inline-block; padding: 8px 20px;">Se connecter</a>
+                    </div>
+                <?php endif; ?>
+                
+                <!-- Liste des avis -->
+                <h3 style="font-size: 1.2rem; margin: 20px 0 15px 0;"><?= count($reviews) ?> avis</h3>
+                
+                <?php if (!empty($reviews)): ?>
+                    <div class="reviews-list" style="display: flex; flex-direction: column; gap: 20px;">
+                        <?php foreach ($reviews as $review): ?>
+                            <div class="review-card" style="background-color: white; border-radius: 10px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <div>
+                                        <span style="font-weight: 600; color: #333; display: block;"><?= htmlspecialchars($review['user_nom']) ?></span>
+                                        <span style="color: #888; font-size: 0.9rem;"><?= date('j F Y', strtotime($review['date_creation'])) ?></span>
+                                    </div>
+                                    <div>
+                                        <?php for($i=1; $i<=5; $i++): ?>
+                                            <i class="fa fa-star" style="color: <?= $i <= $review['rating'] ? '#f1c40f' : '#ccc' ?>;"></i>
+                                        <?php endfor; ?>
+                                    </div>
+                                </div>
+                                <?php if (!empty($review['commentaire'])): ?>
+                                    <div style="color: #444; line-height: 1.5;">
+                                        <?= nl2br(htmlspecialchars($review['commentaire'])) ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <p style="color: #888;">Aucun avis pour ce lieu. Soyez le premier à donner votre note !</p>
                 <?php endif; ?>
             </div>
         </div>

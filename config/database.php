@@ -38,6 +38,49 @@ try {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
 
+    // Création de la table recommandations si elle n'existe pas
+    $pdo->exec("CREATE TABLE IF NOT EXISTS recommandations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ville_id INT,
+        titre VARCHAR(200) NOT NULL,
+        description TEXT,
+        categorie VARCHAR(50) NOT NULL,
+        prix_min DECIMAL(10,2),
+        prix_max DECIMAL(10,2),
+        duree_min INT,
+        duree_max INT,
+        image_url VARCHAR(255),
+        FOREIGN KEY (ville_id) REFERENCES villes(id)
+    )");
+    
+    // Création de la table lieux si elle n'existe pas
+    $pdo->exec("CREATE TABLE IF NOT EXISTS lieux (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nom VARCHAR(100) NOT NULL,
+        photo VARCHAR(255),
+        photo2 VARCHAR(255),
+        photo3 VARCHAR(255),
+        photo4 VARCHAR(255),
+        description TEXT,
+        id_ville INT,
+        url_activite VARCHAR(255),
+        categorie VARCHAR(50),
+        FOREIGN KEY (id_ville) REFERENCES villes(id)
+    )");
+
+    // Création de la table avis si elle n'existe pas
+    $pdo->exec("CREATE TABLE IF NOT EXISTS avis (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        id_utilisateur INT NOT NULL,
+        id_lieu INT NOT NULL,
+        rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        commentaire TEXT,
+        date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_utilisateur) REFERENCES utilisateurs(id),
+        FOREIGN KEY (id_lieu) REFERENCES lieux(id),
+        UNIQUE KEY unique_user_lieu (id_utilisateur, id_lieu)
+    )");
+
     // Vérifier si la table est vide
     $count = $pdo->query("SELECT COUNT(*) FROM villes")->fetchColumn();
     

@@ -290,7 +290,7 @@ try {
         <ul class="nav-menu">
             <li><a href="index.php" class="active">Accueil</a></li>
             <li><a href="destinations.php">Destinations</a></li>
-            <li><a href="experiences.php">Expériences</a></li>
+            <li><a href="recommandations.php">Recommandations</a></li>
         </ul>
         <div class="auth-buttons">
             <?php if (isset($_SESSION['user_id'])): ?>
@@ -422,7 +422,7 @@ try {
                     </div>
                     <div>
                         <a href="destinations.php" style="display: inline-flex; align-items: center; gap: 10px; background: var(--primary-color); color: var(--white); font-weight: 600; font-size: 1.1rem; border-radius: 32px; padding: 18px 38px; text-decoration: none; box-shadow: var(--shadow-md); transition: background 0.2s;">
-                            <i class="fas fa-map-marker-alt" style="font-size: 1.2em;"></i> Explorer les villes
+                            <i class="fas fa-map-marker-alt" style="font-size: 1.2em;"></i> Voir les destinations
                         </a>
                     </div>
                 </div>
@@ -449,12 +449,16 @@ try {
             </div>
             <div class="footer-col">
                 <h3>Liens Rapides</h3>
+                <nav>
                     <ul>
-                    <li><a href="index.php">Accueil</a></li>
-                        <li><a href="destinations.php">Destinations</a></li>
-                        <li><a href="experiences.php">Expériences</a></li>
+                        <li><a href="#hero">Accueil</a></li>
+                        <li><a href="#destinations">Destinations</a></li>
+                        <li><a href="recommandations.php">Recommandations</a></li>
+                        <li><a href="#about">À propos</a></li>
+                        <li><a href="#contact">Contact</a></li>
                     </ul>
-                </div>
+                </nav>
+            </div>
             <div class="footer-col">
                 <h3>Villes Populaires</h3>
                     <ul>
@@ -546,4 +550,4 @@ try {
     })();
 </script>
 </body>
-</html> 
+</html>

@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom'])) {
     $nom = $_POST['nom'];
     $desc = $_POST['description'];
     $id_ville = intval($_POST['id_ville']);
+    $categorie = $_POST['categorie'] ?? '';
     $url_activite = $_POST['url_activite'] ?? '';
     // Gestion des 4 photos
     $photo = $_POST['photo'] ?? '';
@@ -79,10 +80,280 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom'])) {
             }
         }
     }
-    $stmt = $pdo->prepare("INSERT INTO lieux (nom, photo, photo2, photo3, photo4, description, id_ville, url_activite) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$nom, $photo, $photo2, $photo3, $photo4, $desc, $id_ville, $url_activite]);
-    header('Location: admin-places.php');
-    exit();
+    try {
+        $pdo->beginTransaction();
+        
+        // Insu00e9rer le lieu avec la catu00e9gorie
+        $stmt = $pdo->prepare("INSERT INTO lieux (nom, photo, photo2, photo3, photo4, description, id_ville, url_activite, categorie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$nom, $photo, $photo2, $photo3, $photo4, $desc, $id_ville, $url_activite, $categorie]);
+        $lieu_id = $pdo->lastInsertId();
+        
+        // Ru00e9cupu00e9rer le nom de la ville
+        $stmt = $pdo->prepare("SELECT nom FROM villes WHERE id = ?");
+        $stmt->execute([$id_ville]);
+        $ville_nom = $stmt->fetchColumn();
+        
+        // Cru00e9er une recommandation liu00e9e au lieu si une catu00e9gorie est su00e9lectionnu00e9e
+        if (!empty($categorie)) {
+            // Du00e9finir les prix et duru00e9es par du00e9faut selon la catu00e9gorie
+            $prix_durees = [
+                'hotels' => ['prix_min' => 800, 'prix_max' => 2000, 'duree_min' => 1, 'duree_max' => 3],
+                'restaurants' => ['prix_min' => 300, 'prix_max' => 1000, 'duree_min' => 1, 'duree_max' => 1],
+                'parcs' => ['prix_min' => 100, 'prix_max' => 300, 'duree_min' => 1, 'duree_max' => 1],
+                'plages' => ['prix_min' => 0, 'prix_max' => 200, 'duree_min' => 1, 'duree_max' => 1],
+                'cinemas' => ['prix_min' => 100, 'prix_max' => 200, 'duree_min' => 1, 'duree_max' => 1],
+                'theatres' => ['prix_min' => 200, 'prix_max' => 500, 'duree_min' => 1, 'duree_max' => 1],
+                'monuments' => ['prix_min' => 100, 'prix_max' => 300, 'duree_min' => 1, 'duree_max' => 1],
+                'musees' => ['prix_min' => 100, 'prix_max' => 300, 'duree_min' => 1, 'duree_max' => 2],
+                'shopping' => ['prix_min' => 400, 'prix_max' => 1500, 'duree_min' => 1, 'duree_max' => 2],
+                'vie_nocturne' => ['prix_min' => 300, 'prix_max' => 1000, 'duree_min' => 1, 'duree_max' => 1]
+            ];
+            
+            // Titre et description par défaut selon la catégorie
+            $titres_descriptions = [
+                'hotels' => [
+                    'titre' => 'Séjour à ' . $nom,
+                    'description' => 'Profitez d\'un séjour confortable à ' . $nom . ', un hôtel de qualité à ' . $ville_nom . '.'
+                ],
+                'restaurants' => [
+                    'titre' => 'Dégustation à ' . $nom,
+                    'description' => 'Savourez une expérience culinaire unique à ' . $nom . ', un restaurant réputé de ' . $ville_nom . '.'
+                ],
+                'parcs' => [
+                    'titre' => 'Promenade à ' . $nom,
+                    'description' => 'Profitez d\'une promenade relaxante au ' . $nom . ', un parc magnifique de ' . $ville_nom . '.'
+                ],
+                'plages' => [
+                    'titre' => 'Détente à ' . $nom,
+                    'description' => 'Relaxez-vous sur la plage de ' . $nom . ', un lieu de détente idéal à ' . $ville_nom . '.'
+                ],
+                'cinemas' => [
+                    'titre' => 'Séance au cinéma ' . $nom,
+                    'description' => 'Profitez d\'une séance de cinéma au ' . $nom . ', une salle moderne à ' . $ville_nom . '.'
+                ],
+                'theatres' => [
+                    'titre' => 'Spectacle au théâtre ' . $nom,
+                    'description' => 'Assistez à un spectacle captivant au théâtre ' . $nom . ' de ' . $ville_nom . '.'
+                ],
+                'monuments' => [
+                    'titre' => 'Visite de ' . $nom,
+                    'description' => 'Découvrez ' . $nom . ', un monument historique incontournable de ' . $ville_nom . '.'
+                ],
+                'musees' => [
+                    'titre' => 'Visite du musée ' . $nom,
+                    'description' => 'Explorez les collections fascinantes du musée ' . $nom . ' à ' . $ville_nom . '.'
+                ],
+                'shopping' => [
+                    'titre' => 'Shopping à ' . $nom,
+                    'description' => 'Faites du shopping à ' . $nom . ', une destination incontournable pour les achats à ' . $ville_nom . '.'
+                ],
+                'vie_nocturne' => [
+                    'titre' => 'Soirée à ' . $nom,
+                    'description' => 'Profitez de la vie nocturne à ' . $nom . ', un lieu branché de ' . $ville_nom . '.'
+                ]
+            ];
+            
+            // Utiliser les valeurs par du00e9faut pour la catu00e9gorie su00e9lectionnu00e9e
+            $prix_min = $prix_durees[$categorie]['prix_min'];
+            $prix_max = $prix_durees[$categorie]['prix_max'];
+            $duree_min = $prix_durees[$categorie]['duree_min'];
+            $duree_max = $prix_durees[$categorie]['duree_max'];
+            $titre = $titres_descriptions[$categorie]['titre'];
+            $description = $titres_descriptions[$categorie]['description'];
+            
+            // Insu00e9rer la recommandation
+            $stmt = $pdo->prepare("INSERT INTO recommandations (ville_id, titre, description, categorie, prix_min, prix_max, duree_min, duree_max, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$id_ville, $titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $photo]);
+        }
+        
+        $pdo->commit();
+        // Rediriger vers la page des lieux filtrée par la ville sélectionnée
+        header('Location: admin-places.php?ville_id=' . $id_ville);
+        exit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo "Erreur : " . $e->getMessage();
+    }
+}
+
+// Modification d'un lieu
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
+    $edit_id = intval($_POST['edit_id']);
+    $nom = $_POST['nom'];
+    $desc = $_POST['description'];
+    $id_ville = intval($_POST['id_ville']);
+    $categorie = $_POST['categorie'] ?? '';
+    $url_activite = $_POST['url_activite'] ?? '';
+    $photo = $_POST['photo'] ?? '';
+    $photo2 = $_POST['photo2'] ?? '';
+    $photo3 = $_POST['photo3'] ?? '';
+    $photo4 = $_POST['photo4'] ?? '';
+    $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+
+    // Upload photo 1
+    if (isset($_FILES['photo_upload']) && $_FILES['photo_upload']['error'] === 0) {
+        $filename = $_FILES['photo_upload']['name'];
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (in_array($ext, $allowed)) {
+            $new_filename = uniqid() . '.' . $ext;
+            $upload_path = '../uploads/lieux/' . $new_filename;
+            if (!is_dir('../uploads/lieux')) {
+                mkdir('../uploads/lieux', 0777, true);
+            }
+            if (move_uploaded_file($_FILES['photo_upload']['tmp_name'], $upload_path)) {
+                $photo = 'uploads/lieux/' . $new_filename;
+            }
+        }
+    }
+    // Upload photo 2
+    if (isset($_FILES['photo2_upload']) && $_FILES['photo2_upload']['error'] === 0) {
+        $filename = $_FILES['photo2_upload']['name'];
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (in_array($ext, $allowed)) {
+            $new_filename = uniqid() . '.' . $ext;
+            $upload_path = '../uploads/lieux/' . $new_filename;
+            if (!is_dir('../uploads/lieux')) {
+                mkdir('../uploads/lieux', 0777, true);
+            }
+            if (move_uploaded_file($_FILES['photo2_upload']['tmp_name'], $upload_path)) {
+                $photo2 = 'uploads/lieux/' . $new_filename;
+            }
+        }
+    }
+    // Upload photo 3
+    if (isset($_FILES['photo3_upload']) && $_FILES['photo3_upload']['error'] === 0) {
+        $filename = $_FILES['photo3_upload']['name'];
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (in_array($ext, $allowed)) {
+            $new_filename = uniqid() . '.' . $ext;
+            $upload_path = '../uploads/lieux/' . $new_filename;
+            if (!is_dir('../uploads/lieux')) {
+                mkdir('../uploads/lieux', 0777, true);
+            }
+            if (move_uploaded_file($_FILES['photo3_upload']['tmp_name'], $upload_path)) {
+                $photo3 = 'uploads/lieux/' . $new_filename;
+            }
+        }
+    }
+    // Upload photo 4
+    if (isset($_FILES['photo4_upload']) && $_FILES['photo4_upload']['error'] === 0) {
+        $filename = $_FILES['photo4_upload']['name'];
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (in_array($ext, $allowed)) {
+            $new_filename = uniqid() . '.' . $ext;
+            $upload_path = '../uploads/lieux/' . $new_filename;
+            if (!is_dir('../uploads/lieux')) {
+                mkdir('../uploads/lieux', 0777, true);
+            }
+            if (move_uploaded_file($_FILES['photo4_upload']['tmp_name'], $upload_path)) {
+                $photo4 = 'uploads/lieux/' . $new_filename;
+            }
+        }
+    }
+
+    try {
+        $pdo->beginTransaction();
+        
+        // Mettre à jour le lieu avec la catégorie
+        $stmt = $pdo->prepare("UPDATE lieux SET nom = ?, photo = ?, photo2 = ?, photo3 = ?, photo4 = ?, description = ?, id_ville = ?, url_activite = ?, categorie = ? WHERE id = ?");
+        $stmt->execute([$nom, $photo, $photo2, $photo3, $photo4, $desc, $id_ville, $url_activite, $categorie, $edit_id]);
+        
+        // Récupérer le nom de la ville
+        $stmt = $pdo->prepare("SELECT nom FROM villes WHERE id = ?");
+        $stmt->execute([$id_ville]);
+        $ville_nom = $stmt->fetchColumn();
+        
+        // Vérifier si une recommandation existe déjà pour ce lieu
+        $stmt = $pdo->prepare("SELECT id FROM recommandations WHERE ville_id = ? AND titre LIKE ?");
+        $stmt->execute([$id_ville, 'Visite de ' . $nom . '%']);
+        $recommandation_id = $stmt->fetchColumn();
+        
+        if (!empty($categorie)) {
+            // Définir les prix et durées par défaut selon la catégorie
+            $prix_durees = [
+                'hotels' => ['prix_min' => 800, 'prix_max' => 2000, 'duree_min' => 1, 'duree_max' => 3],
+                'restaurants' => ['prix_min' => 300, 'prix_max' => 1000, 'duree_min' => 1, 'duree_max' => 1],
+                'parcs' => ['prix_min' => 100, 'prix_max' => 300, 'duree_min' => 1, 'duree_max' => 1],
+                'plages' => ['prix_min' => 0, 'prix_max' => 200, 'duree_min' => 1, 'duree_max' => 1],
+                'cinemas' => ['prix_min' => 100, 'prix_max' => 200, 'duree_min' => 1, 'duree_max' => 1],
+                'theatres' => ['prix_min' => 200, 'prix_max' => 500, 'duree_min' => 1, 'duree_max' => 1],
+                'monuments' => ['prix_min' => 100, 'prix_max' => 300, 'duree_min' => 1, 'duree_max' => 1],
+                'musees' => ['prix_min' => 100, 'prix_max' => 300, 'duree_min' => 1, 'duree_max' => 2],
+                'shopping' => ['prix_min' => 400, 'prix_max' => 1500, 'duree_min' => 1, 'duree_max' => 2],
+                'vie_nocturne' => ['prix_min' => 300, 'prix_max' => 1000, 'duree_min' => 1, 'duree_max' => 1]
+            ];
+            
+            // Titre et description par défaut selon la catégorie
+            $titres_descriptions = [
+                'hotels' => [
+                    'titre' => 'Séjour à ' . $nom,
+                    'description' => 'Profitez d\'un séjour confortable à ' . $nom . ', un hôtel de qualité à ' . $ville_nom . '.'
+                ],
+                'restaurants' => [
+                    'titre' => 'Dégustation à ' . $nom,
+                    'description' => 'Savourez une expérience culinaire unique à ' . $nom . ', un restaurant réputé de ' . $ville_nom . '.'
+                ],
+                'parcs' => [
+                    'titre' => 'Promenade à ' . $nom,
+                    'description' => 'Profitez d\'une promenade relaxante au ' . $nom . ', un parc magnifique de ' . $ville_nom . '.'
+                ],
+                'plages' => [
+                    'titre' => 'Détente à ' . $nom,
+                    'description' => 'Relaxez-vous sur la plage de ' . $nom . ', un lieu de détente idéal à ' . $ville_nom . '.'
+                ],
+                'cinemas' => [
+                    'titre' => 'Séance au cinéma ' . $nom,
+                    'description' => 'Profitez d\'une séance de cinéma au ' . $nom . ', une salle moderne à ' . $ville_nom . '.'
+                ],
+                'theatres' => [
+                    'titre' => 'Spectacle au théâtre ' . $nom,
+                    'description' => 'Assistez à un spectacle captivant au théâtre ' . $nom . ' de ' . $ville_nom . '.'
+                ],
+                'monuments' => [
+                    'titre' => 'Visite de ' . $nom,
+                    'description' => 'Découvrez ' . $nom . ', un monument historique incontournable de ' . $ville_nom . '.'
+                ],
+                'musees' => [
+                    'titre' => 'Visite du musée ' . $nom,
+                    'description' => 'Explorez les collections fascinantes du musée ' . $nom . ' à ' . $ville_nom . '.'
+                ],
+                'shopping' => [
+                    'titre' => 'Shopping à ' . $nom,
+                    'description' => 'Faites du shopping à ' . $nom . ', une destination incontournable pour les achats à ' . $ville_nom . '.'
+                ],
+                'vie_nocturne' => [
+                    'titre' => 'Soirée à ' . $nom,
+                    'description' => 'Profitez de la vie nocturne à ' . $nom . ', un lieu branché de ' . $ville_nom . '.'
+                ]
+            ];
+            
+            // Utiliser les valeurs par défaut pour la catégorie sélectionnée
+            $prix_min = $prix_durees[$categorie]['prix_min'];
+            $prix_max = $prix_durees[$categorie]['prix_max'];
+            $duree_min = $prix_durees[$categorie]['duree_min'];
+            $duree_max = $prix_durees[$categorie]['duree_max'];
+            $titre = $titres_descriptions[$categorie]['titre'];
+            $description = $titres_descriptions[$categorie]['description'];
+            
+            if ($recommandation_id) {
+                // Mettre à jour la recommandation existante
+                $stmt = $pdo->prepare("UPDATE recommandations SET titre = ?, description = ?, categorie = ?, prix_min = ?, prix_max = ?, duree_min = ?, duree_max = ?, image_url = ? WHERE id = ?");
+                $stmt->execute([$titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $photo, $recommandation_id]);
+            } else {
+                // Créer une nouvelle recommandation
+                $stmt = $pdo->prepare("INSERT INTO recommandations (ville_id, titre, description, categorie, prix_min, prix_max, duree_min, duree_max, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$id_ville, $titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $photo]);
+            }
+        }
+        
+        $pdo->commit();
+        // Rediriger vers la page des lieux filtrée par la ville sélectionnée
+        header('Location: admin-places.php?ville_id=' . $id_ville);
+        exit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo "Erreur : " . $e->getMessage();
+    }
 }
 
 // Suppression d'un lieu
@@ -105,7 +376,23 @@ if (isset($_GET['edit'])) {
 }
 
 // Liste des lieux et villes
-$places = $pdo->query("SELECT lieux.*, villes.nom AS ville_nom FROM lieux JOIN villes ON lieux.id_ville = villes.id")->fetchAll(PDO::FETCH_ASSOC);
+$ville_filter = isset($_GET['ville_id']) ? intval($_GET['ville_id']) : 0;
+
+if ($ville_filter > 0) {
+    // Filtrer les lieux par ville si un ID de ville est spécifié
+    $stmt = $pdo->prepare("SELECT lieux.*, villes.nom AS ville_nom FROM lieux JOIN villes ON lieux.id_ville = villes.id WHERE lieux.id_ville = ?");
+    $stmt->execute([$ville_filter]);
+    $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Récupérer le nom de la ville filtrée pour l'afficher
+    $stmt = $pdo->prepare("SELECT nom FROM villes WHERE id = ?");
+    $stmt->execute([$ville_filter]);
+    $filtered_city_name = $stmt->fetchColumn();
+} else {
+    // Afficher tous les lieux si aucun filtre n'est spécifié
+    $places = $pdo->query("SELECT lieux.*, villes.nom AS ville_nom FROM lieux JOIN villes ON lieux.id_ville = villes.id")->fetchAll(PDO::FETCH_ASSOC);
+}
+
 $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -284,7 +571,7 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
             <ul class="nav-menu">
                 <li><a href="../index.php">Accueil</a></li>
                 <li><a href="../destinations.php">Destinations</a></li>
-                <li><a href="../experiences.php">Expériences</a></li>
+                <li><a href="../recommandations.php">Recommandations</a></li>
             </ul>
             <div class="auth-buttons">
                 <a href="admin-panel.php" class="btn-outline" style="margin-right:10px;">Panel Admin</a>
@@ -297,6 +584,12 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
     <div class="container">
             <div class="section-title">
                 <h2>Gestion des lieux</h2>
+                <?php if (isset($ville_filter) && $ville_filter > 0 && isset($filtered_city_name)): ?>
+                <div style="text-align: center; margin-top: 10px;">
+                    <p style="color: var(--primary-color); font-weight: 500;">Lieux filtrés pour la ville de <strong><?= htmlspecialchars($filtered_city_name) ?></strong></p>
+                    <a href="admin-places.php" class="btn-outline" style="display: inline-block; margin-top: 10px;">Voir tous les lieux</a>
+                </div>
+                <?php endif; ?>
             </div>
             <section class="section">
                 <div class="form" style="max-width:600px;margin:0 auto 40px auto;">
@@ -346,11 +639,26 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <div class="form-group">
                             <select name="id_ville" class="form-control" required>
-                <option value="">Ville</option>
-                <?php foreach ($cities as $city): ?>
-                    <option value="<?= $city['id'] ?>" <?= (isset($editPlace) && $editPlace['id_ville'] == $city['id']) ? 'selected' : '' ?>><?= htmlspecialchars($city['nom']) ?></option>
-                <?php endforeach; ?>
-            </select>
+                                <option value="">Ville</option>
+                                <?php foreach ($cities as $city): ?>
+                                    <option value="<?= $city['id'] ?>" <?= (isset($editPlace) && $editPlace['id_ville'] == $city['id']) || (!isset($editPlace) && isset($ville_filter) && $ville_filter == $city['id']) ? 'selected' : '' ?>><?= htmlspecialchars($city['nom']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <select name="categorie" class="form-control" required>
+                                <option value="">Catu00e9gorie</option>
+                                <option value="hotels" <?= (isset($editPlace) && $editPlace['categorie'] == 'hotels') ? 'selected' : '' ?>>Hôtels</option>
+                                <option value="restaurants" <?= (isset($editPlace) && $editPlace['categorie'] == 'restaurants') ? 'selected' : '' ?>>Restaurants</option>
+                                <option value="parcs" <?= (isset($editPlace) && $editPlace['categorie'] == 'parcs') ? 'selected' : '' ?>>Parcs</option>
+                                <option value="plages" <?= (isset($editPlace) && $editPlace['categorie'] == 'plages') ? 'selected' : '' ?>>Plages</option>
+                                <option value="cinemas" <?= (isset($editPlace) && $editPlace['categorie'] == 'cinemas') ? 'selected' : '' ?>>Cinémas</option>
+                                <option value="theatres" <?= (isset($editPlace) && $editPlace['categorie'] == 'theatres') ? 'selected' : '' ?>>Théâtres</option>
+                                <option value="monuments" <?= (isset($editPlace) && $editPlace['categorie'] == 'monuments') ? 'selected' : '' ?>>Monuments</option>
+                                <option value="musees" <?= (isset($editPlace) && $editPlace['categorie'] == 'musees') ? 'selected' : '' ?>>Musées</option>
+                                <option value="shopping" <?= (isset($editPlace) && $editPlace['categorie'] == 'shopping') ? 'selected' : '' ?>>Shopping</option>
+                                <option value="vie_nocturne" <?= (isset($editPlace) && $editPlace['categorie'] == 'vie_nocturne') ? 'selected' : '' ?>>Vie nocturne</option>
+                            </select>
                         </div>
                         <button type="submit" class="btn-solid" style="width:100%;">
                             <?= isset($editMode) && $editMode ? 'Enregistrer' : 'Ajouter' ?>

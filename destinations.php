@@ -72,7 +72,7 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <ul class="nav-menu">
                 <li><a href="index.php">Accueil</a></li>
                 <li><a href="destinations.php" class="active">Destinations</a></li>
-                <li><a href="experiences.php">Expériences</a></li>
+                <li><a href="recommendations.php">Recommenadations Personnalisées</a></li>
             </ul>
             <div class="auth-buttons">
                 <?php if (isset($_SESSION['user_id'])): ?>
@@ -173,7 +173,7 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <ul>
                         <li><a href="index.php">Accueil</a></li>
                         <li><a href="destinations.php">Destinations</a></li>
-                        <li><a href="experiences.php">Expériences</a></li>
+                        <li><a href="recommendations.php">Recommandations Personnalisées</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">

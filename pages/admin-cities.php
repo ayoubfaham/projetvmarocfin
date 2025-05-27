@@ -41,10 +41,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nom = trim($_POST['nom']);
         $photo = trim($_POST['photo']);
         $desc = trim($_POST['description']);
+        $categories = isset($_POST['categories']) ? $_POST['categories'] : [];
+        
         if ($nom && $desc) {
-    $stmt = $pdo->prepare("INSERT INTO villes (nom, photo, description) VALUES (?, ?, ?)");
-    $stmt->execute([$nom, $photo, $desc]);
-            $success = "Ville ajoutée avec succès !";
+            try {
+                $pdo->beginTransaction();
+                
+                // Insérer la ville
+                $stmt = $pdo->prepare("INSERT INTO villes (nom, photo, description) VALUES (?, ?, ?)");
+                $stmt->execute([$nom, $photo, $desc]);
+                $ville_id = $pdo->lastInsertId();
+                
+                // Ajouter des recommandations par défaut pour chaque catégorie sélectionnée
+                if (!empty($categories)) {
+                    $recommandationsDefaut = [
+                        'culture' => [
+                            'titre' => 'Visite culturelle de ' . $nom,
+                            'description' => 'Découvrez les sites culturels et historiques de ' . $nom,
+                            'prix_min' => 500,
+                            'prix_max' => 1200,
+                            'duree_min' => 1,
+                            'duree_max' => 2,
+                            'image_url' => $photo
+                        ],
+                        'nature' => [
+                            'titre' => 'Exploration nature à ' . $nom,
+                            'description' => 'Randonnée et découverte des paysages naturels de ' . $nom,
+                            'prix_min' => 600,
+                            'prix_max' => 1500,
+                            'duree_min' => 1,
+                            'duree_max' => 2,
+                            'image_url' => $photo
+                        ],
+                        'gastronomie' => [
+                            'titre' => 'Découverte gastronomique de ' . $nom,
+                            'description' => 'Dégustez les spécialités culinaires locales de ' . $nom,
+                            'prix_min' => 700,
+                            'prix_max' => 1400,
+                            'duree_min' => 1,
+                            'duree_max' => 1,
+                            'image_url' => $photo
+                        ],
+                        'shopping' => [
+                            'titre' => 'Shopping à ' . $nom,
+                            'description' => 'Découvrez les marchés et boutiques d\'artisanat de ' . $nom,
+                            'prix_min' => 400,
+                            'prix_max' => 1000,
+                            'duree_min' => 1,
+                            'duree_max' => 1,
+                            'image_url' => $photo
+                        ],
+                        'plage' => [
+                            'titre' => 'Détente et relaxation à ' . $nom,
+                            'description' => 'Profitez des espaces de détente et de bien-être de ' . $nom,
+                            'prix_min' => 800,
+                            'prix_max' => 1800,
+                            'duree_min' => 1,
+                            'duree_max' => 1,
+                            'image_url' => $photo
+                        ],
+                        'famille' => [
+                            'titre' => 'Activités familiales à ' . $nom,
+                            'description' => 'Découvrez les activités adaptées aux familles à ' . $nom,
+                            'prix_min' => 600,
+                            'prix_max' => 1500,
+                            'duree_min' => 1,
+                            'duree_max' => 2,
+                            'image_url' => $photo
+                        ]
+                    ];
+                    
+                    $stmt = $pdo->prepare("INSERT INTO recommandations (ville_id, titre, description, categorie, prix_min, prix_max, duree_min, duree_max, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    
+                    foreach ($categories as $categorie) {
+                        if (isset($recommandationsDefaut[$categorie])) {
+                            $rec = $recommandationsDefaut[$categorie];
+                            $stmt->execute([
+                                $ville_id,
+                                $rec['titre'],
+                                $rec['description'],
+                                $categorie,
+                                $rec['prix_min'],
+                                $rec['prix_max'],
+                                $rec['duree_min'],
+                                $rec['duree_max'],
+                                $rec['image_url']
+                            ]);
+                        }
+                    }
+                }
+                
+                $pdo->commit();
+                $success = "Ville ajoutée avec succès avec " . count($categories) . " recommandations !";
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                $error = "Erreur lors de l'ajout : " . $e->getMessage();
+            }
         } else {
             $error = "Veuillez remplir tous les champs obligatoires.";
         }
@@ -159,7 +251,7 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
             <ul class="nav-menu">
                 <li><a href="../index.php">Accueil</a></li>
                 <li><a href="../destinations.php">Destinations</a></li>
-                <li><a href="../experiences.php">Expériences</a></li>
+                <li><a href="../recommandations.php">Recommandations</a></li>
             </ul>
             <div class="auth-buttons">
                 <a href="admin-panel.php" class="btn-outline">Panel Admin</a>

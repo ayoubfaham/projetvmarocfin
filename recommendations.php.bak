@@ -1,0 +1,559 @@
+<?php
+session_start();
+require_once 'config/database.php';
+
+// Tableau des centres d'intérêt
+$interests = [
+    'culture' => 'Culture et Histoire',
+    'nature' => 'Nature et Randonnées',
+    'gastronomie' => 'Gastronomie',
+    'shopping' => 'Shopping',
+    'plage' => 'Plage et Détente',
+    'famille' => 'Famille'
+];
+
+// Durées de séjour disponibles
+$durations = [
+    '1-3' => '1-3 jours',
+    '4-7' => '4-7 jours',
+    '8-14' => '8-14 jours',
+    '15+' => '15 jours ou plus'
+];
+
+// Budgets disponibles
+$budgets = [
+    '1000-2000' => '1000-2000 MAD',
+    '2000-4000' => '2000-4000 MAD',
+    '4000-6000' => '4000-6000 MAD',
+    '6000+' => '6000+ MAD'
+];
+
+// Récupérer la liste des villes pour le formulaire
+try {
+    $stmt = $pdo->query("SELECT id, nom FROM villes ORDER BY nom");
+    $cities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // En cas d'erreur, initialiser un tableau vide
+    $cities = [];
+    // Enregistrer l'erreur dans un fichier de log
+    error_log('Erreur SQL: ' . $e->getMessage());
+}
+
+// Variables par défaut
+$city = '';
+$interest = '';
+$duration = '';
+$budget = '';
+$cityInfo = null;
+$recommendations = [];
+
+// Traitement du formulaire
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $city = isset($_POST['city']) ? $_POST['city'] : '';
+    $interest = isset($_POST['interest']) ? $_POST['interest'] : '';
+    $duration = isset($_POST['duration']) ? $_POST['duration'] : '';
+    $budget = isset($_POST['budget']) ? $_POST['budget'] : '';
+
+    try {
+        // Requête pour obtenir les informations de la ville
+        if (!empty($city)) {
+            $stmt = $pdo->prepare("SELECT * FROM villes WHERE nom = ?");
+            $stmt->execute([$city]);
+            $cityInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Récupérer les recommandations correspondant aux critères
+            $recommandationsQuery = "
+                SELECT r.*, v.nom as ville_nom
+                FROM recommandations r
+                JOIN villes v ON r.ville_id = v.id
+                WHERE 1=1
+            ";
+            
+            $params = [];
+            
+            if (!empty($city)) {
+                $recommandationsQuery .= " AND v.nom = ?";
+                $params[] = $city;
+            }
+            
+            if (!empty($interest)) {
+                $recommandationsQuery .= " AND r.categorie = ?";
+                $params[] = $interest;
+            }
+            
+            $stmt = $pdo->prepare($recommandationsQuery);
+            $stmt->execute($params);
+            $recommendations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (PDOException $e) {
+        // En cas d'erreur, enregistrer dans un fichier de log
+        error_log('Erreur SQL: ' . $e->getMessage());
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Recommandations - VMaroc</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2e4057;
+            --secondary-color: #e74c3c;
+            --accent-color: #b48a3c;
+            --text-color: #333;
+            --light-color: #f8f6f3;
+            --border-color: #e1e1e1;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 16px rgba(0,0,0,0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-color);
+            line-height: 1.6;
+            background-color: var(--light-color);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* Header */
+        header {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+        
+        .logo-img {
+            height: 50px;
+        }
+        
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            gap: 30px;
+        }
+        
+        .nav-menu li a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 500;
+            transition: var(--transition);
+            position: relative;
+        }
+        
+        .nav-menu li a:hover, .nav-menu li a.active {
+            color: var(--accent-color);
+        }
+        
+        .nav-menu li a.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--accent-color);
+        }
+        
+        .auth-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-outline, .btn-primary {
+            padding: 8px 20px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        
+        .btn-outline {
+            border: 2px solid var(--accent-color);
+            color: var(--accent-color);
+        }
+        
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+            border: 2px solid var(--accent-color);
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #9b7633;
+            border-color: #9b7633;
+        }
+        
+        /* Footer */
+        footer {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 60px 0 20px;
+            margin-top: 60px;
+        }
+        
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+        
+        .footer-col h3 {
+            color: #ecf0f1;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            position: relative;
+        }
+        
+        .footer-col h3::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background-color: var(--accent-color);
+        }
+        
+        .footer-col p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+        
+        .footer-col ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .footer-col ul li {
+            margin-bottom: 12px;
+        }
+        
+        .footer-col ul li a {
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+        
+        .footer-col ul li a:hover {
+            color: var(--accent-color);
+            padding-left: 5px;
+        }
+        
+        .social-links {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .social-links a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+        
+        .social-links a:hover {
+            background-color: var(--accent-color);
+            transform: translateY(-3px);
+        }
+        
+        .contact-info li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .contact-info li i {
+            color: var(--accent-color);
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9rem;
+        }
+        
+        /* Recommendations Form */
+        .recommendations-form {
+            max-width: 800px;
+            margin: 0 auto 40px;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .recommendations-form h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            font-size: 1.8rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .submit-btn:hover {
+            background-color: #6B5B45;
+        }
+        .recommendations-results {
+            margin-top: 40px;
+            padding: 20px;
+            background: var(--light-color);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container header-container">
+            <a href="index.php" class="logo">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img"style="height:70px;">
+            </a>
+            <ul class="nav-menu">
+                <li><a href="index.php">Accueil</a></li>
+                <li><a href="destinations.php">Destinations</a></li>
+                <li><a href="recommendations.php" class="active">Recommendations</a></li>
+            </ul>
+            <div class="auth-buttons">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                        <a href="pages/admin-panel.php" class="btn-outline">Panel Admin</a>
+                        <a href="logout.php" class="btn-primary">Du00e9connexion</a>
+                    <?php else: ?>
+                        <a href="profile.php" class="btn-outline">Mon Profil</a>
+                        <a href="logout.php" class="btn-primary">Du00e9connexion</a>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <a href="login.php" class="btn-outline">Connexion</a>
+                    <a href="register.php" class="btn-primary">Inscription</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </header>
+
+    <div class="container" style="padding-top: 100px; padding-bottom: 50px;">
+        <div class="recommendations-form">
+        <h2>Obtenir des Recommandations</h2>
+        <form method="POST" action="" class="needs-validation" novalidate>
+            <div class="form-group">
+                <label for="city">Ville</label>
+                <select name="city" id="city" required>
+                    <option value="">Choisir une ville</option>
+                    <?php foreach ($cities as $city): ?>
+                        <option value="<?php echo htmlspecialchars($city['nom']); ?>"><?php echo htmlspecialchars($city['nom']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="interest">Centre d'intérêt</label>
+                <select name="interest" id="interest" required>
+                    <option value="">Choisir un centre d'intérêt</option>
+                    <?php foreach ($interests as $key => $value): ?>
+                        <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($value); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="duration">Durée du séjour</label>
+                <select name="duration" id="duration" required>
+                    <option value="">Choisir la durée</option>
+                    <?php foreach ($durations as $key => $value): ?>
+                        <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($value); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="budget">Budget estimé</label>
+                <select name="budget" id="budget" required>
+                    <option value="">Choisir un budget</option>
+                    <?php foreach ($budgets as $key => $value): ?>
+                        <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($value); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <button type="submit" class="submit-btn">Obtenir des recommandations</button>
+        </form>
+    </div>
+
+    <?php if (isset($city) && $city): ?>
+        <div class="recommendations-results">
+            <h3>Vos recommandations pour <?php echo htmlspecialchars($city); ?></h3>
+            <?php if ($cityInfo): ?>
+                <p class="mb-4"><?php echo htmlspecialchars($cityInfo['description']); ?></p>
+                
+                <?php if (isset($recommendations) && !empty($recommendations)): ?>
+                    <div class="recommendations-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                        <?php foreach ($recommendations as $reco): ?>
+                            <div class="recommendation-card" style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <div style="height: 180px; overflow: hidden;">
+                                    <img src="<?= htmlspecialchars($reco['image_url'] ?? 'https://i.postimg.cc/Vk4Mhzsc/maroc2.jpg') ?>" alt="<?= htmlspecialchars($reco['titre']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                </div>
+                                <div style="padding: 15px;">
+                                    <h4 style="margin-top: 0; color: var(--primary-color);"><?= htmlspecialchars($reco['titre']) ?></h4>
+                                    <p style="font-size: 0.9rem; color: #666;"><?= htmlspecialchars($reco['description']) ?></p>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                                        <span style="font-size: 0.85rem; color: #888;">
+                                            <i class="fas fa-map-marker-alt" style="color: var(--accent-color);"></i> 
+                                            <?= htmlspecialchars($reco['ville_nom']) ?>
+                                        </span>
+                                        <span style="font-size: 0.85rem; color: #888;">
+                                            <i class="fas fa-tag" style="color: var(--accent-color);"></i> 
+                                            <?= htmlspecialchars($reco['categorie']) ?>
+                                        </span>
+                                    </div>
+                                    <?php if (!empty($reco['prix_min']) && !empty($reco['prix_max'])): ?>
+                                        <div style="margin-top: 10px; font-size: 0.9rem;">
+                                            <strong>Prix:</strong> <?= $reco['prix_min'] ?> - <?= $reco['prix_max'] ?> MAD
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($reco['duree_min']) && !empty($reco['duree_max'])): ?>
+                                        <div style="margin-top: 5px; font-size: 0.9rem;">
+                                            <strong>Duru00e9e:</strong> <?= $reco['duree_min'] ?> - <?= $reco['duree_max'] ?> jours
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-info" style="padding: 15px; background-color: #f8f9fa; border-left: 4px solid var(--accent-color); margin-top: 20px;">
+                        <p>Aucune recommandation ne correspond u00e0 vos critu00e8res pour cette ville. Essayez avec d'autres filtres ou une autre ville.</p>
+                    </div>
+                <?php endif; ?>
+            <?php else: ?>
+                <p>Aucune information trouvu00e9e pour cette ville.</p>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+    </div>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img" style="height:60px;">
+                    <p>Du00e9couvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisu00e9.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h3>Liens Rapides</h3>
+                    <ul>
+                        <li><a href="index.php">Accueil</a></li>
+                        <li><a href="destinations.php">Destinations</a></li>
+                        <li><a href="recommendations.php">Recommendations</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h3>Villes Populaires</h3>
+                    <ul>
+                        <?php
+                        $popular = ['casablanca', 'marrakech', 'tanger'];
+                        foreach ($popular as $pop) {
+                            foreach ($cities as $city) {
+                                if (strtolower($city['nom']) === $pop) {
+                                    echo '<li><a href="city.php?id=' . $city['id'] . '">' . htmlspecialchars($city['nom']) . '</a></li>';
+                                    break;
+                                }
+                            }
+                        }
+                        ?>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h3>Contact</h3>
+                    <ul class="contact-info">
+                        <li><i class="fas fa-map-marker-alt"></i> 123 Avenue Mohammed V, Rabat, Maroc</li>
+                        <li><i class="fas fa-phone"></i> +212 5 37 XX XX XX</li>
+                        <li><i class="fas fa-envelope"></i> contact@vmaroc.ma</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2023 VMaroc - Tous droits ru00e9servu00e9s</p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>
