@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 session_start();
 if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
     header('Location: admin-login.php');
@@ -7,85 +10,110 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
 
 $pdo = new PDO('mysql:host=localhost;dbname=vmaroc;charset=utf8', 'root', '');
 
+// --- REMOVED: Database Connection Test Echos ---
+// if ($pdo) {
+//     echo '<div style="color: green; font-weight: bold;">Database connection successful!</div>';
+// } else {
+//     echo '<div style="color: red; font-weight: bold;">Database connection failed!</div>';
+//     // Depending on the error, the script might stop here anyway
+// }
+// --- End REMOVED Database Connection Test Echos ---
+
 // Ajout d'un lieu
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom']) && !isset($_POST['edit_id'])) {
+    echo "Trace 6: Inside Add POST handler.<br>"; // Trace point 6
+    // --- DEBUG: Inspect $_FILES array for Add ---
+    error_log("[PHP Debug - ADD] FILES array: " . print_r($_FILES, true));
+    var_dump($_FILES);
+    // --- End DEBUG ---
+
     $nom = $_POST['nom'];
     $desc = $_POST['description'];
     $id_ville = intval($_POST['id_ville']);
     $categorie = $_POST['categorie'] ?? '';
     $url_activite = $_POST['url_activite'] ?? '';
-    // Gestion des 4 photos
-    $photo = $_POST['photo'] ?? '';
-    $photo2 = $_POST['photo2'] ?? '';
-    $photo3 = $_POST['photo3'] ?? '';
-    $photo4 = $_POST['photo4'] ?? '';
+    // --- REMOVED: Old photo variables ---
+    // $photo = $_POST['photo'] ?? '';
+    // $photo2 = $_POST['photo2'] ?? '';
+    // $photo3 = $_POST['photo3'] ?? '';
+    // $photo4 = $_POST['photo4'] ?? '';
     $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-    // Upload photo 1
-    if (isset($_FILES['photo_upload']) && $_FILES['photo_upload']['error'] === 0) {
-        $filename = $_FILES['photo_upload']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = uniqid() . '.' . $ext;
-            $upload_path = '../uploads/lieux/' . $new_filename;
-            if (!is_dir('../uploads/lieux')) {
-                mkdir('../uploads/lieux', 0777, true);
+    
+    // --- REMOVED: Old uploaded_photos array ---
+    // $uploaded_photos = [];
+    $uploaded_hero_images = []; // Array to store paths of uploaded hero images
+
+    // --- Handle Hero Images Upload for Add ---
+     // Check if files were uploaded and if the 'hero_images_upload' key exists and is an array
+    if (isset($_FILES['hero_images_upload']['name']) && is_array($_FILES['hero_images_upload']['name'])) {
+        // Filter out empty file inputs (when user doesn't select a file)
+        $valid_files = array_filter($_FILES['hero_images_upload']['name'], function($name) { return !empty($name); });
+
+        if (!empty($valid_files)) {
+            $uploadHeroDir = '../uploads/lieux/hero/'; // Chemin physique pour l'upload
+            $webAccessibleDir = 'uploads/lieux/hero/'; // Chemin relatif pour la base de données
+            
+            // S'assurer que le dossier existe
+            if (!file_exists($uploadHeroDir)) {
+                mkdir($uploadHeroDir, 0777, true);
             }
-            if (move_uploaded_file($_FILES['photo_upload']['tmp_name'], $upload_path)) {
-                $photo = 'uploads/lieux/' . $new_filename;
-            }
-        }
-    }
-    // Upload photo 2
-    if (isset($_FILES['photo2_upload']) && $_FILES['photo2_upload']['error'] === 0) {
-        $filename = $_FILES['photo2_upload']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = uniqid() . '.' . $ext;
-            $upload_path = '../uploads/lieux/' . $new_filename;
-            if (!is_dir('../uploads/lieux')) {
-                mkdir('../uploads/lieux', 0777, true);
-            }
-            if (move_uploaded_file($_FILES['photo2_upload']['tmp_name'], $upload_path)) {
-                $photo2 = 'uploads/lieux/' . $new_filename;
-            }
-        }
-    }
-    // Upload photo 3
-    if (isset($_FILES['photo3_upload']) && $_FILES['photo3_upload']['error'] === 0) {
-        $filename = $_FILES['photo3_upload']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = uniqid() . '.' . $ext;
-            $upload_path = '../uploads/lieux/' . $new_filename;
-            if (!is_dir('../uploads/lieux')) {
-                mkdir('../uploads/lieux', 0777, true);
-            }
-            if (move_uploaded_file($_FILES['photo3_upload']['tmp_name'], $upload_path)) {
-                $photo3 = 'uploads/lieux/' . $new_filename;
-            }
-        }
-    }
-    // Upload photo 4
-    if (isset($_FILES['photo4_upload']) && $_FILES['photo4_upload']['error'] === 0) {
-        $filename = $_FILES['photo4_upload']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = uniqid() . '.' . $ext;
-            $upload_path = '../uploads/lieux/' . $new_filename;
-            if (!is_dir('../uploads/lieux')) {
-                mkdir('../uploads/lieux', 0777, true);
-            }
-            if (move_uploaded_file($_FILES['photo4_upload']['tmp_name'], $upload_path)) {
-                $photo4 = 'uploads/lieux/' . $new_filename;
+            
+            // Déjà traité au-dessus
+
+            foreach (array_keys($_FILES['hero_images_upload']['name']) as $key) {
+                 // Check for upload errors for the current file
+                if ($_FILES['hero_images_upload']['error'][$key] === UPLOAD_ERR_OK) {
+                    $filename = $_FILES['hero_images_upload']['name'][$key];
+                    $tempPath = $_FILES['hero_images_upload']['tmp_name'][$key];
+                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+                    if (in_array($ext, $allowed)) {
+                        $new_filename = uniqid('hero_', true) . '.' . $ext;
+                        $targetPath = $uploadHeroDir . $new_filename;
+
+                        if (move_uploaded_file($tempPath, $targetPath)) {
+                            // Utiliser le chemin web accessible pour la base de données
+                            $uploaded_hero_images[] = $webAccessibleDir . $new_filename;
+                            // Afficher un message de succès
+                            $_SESSION['admin_message'] = "Les images ont été téléchargées avec succès.";
+                            $_SESSION['admin_message_type'] = 'success';
+                        } else {
+                            $_SESSION['admin_message'] = "Erreur lors du déplacement du fichier hero " . htmlspecialchars($filename) . ".";
+                            $_SESSION['admin_message_type'] = 'error';
+                        }
+                    } else {
+                        $_SESSION['admin_message'] = "Type de fichier non autorisé pour " . htmlspecialchars($filename) . " lors de l'ajout. Seuls " . implode(', ', $allowed) . " sont autorisés.";
+                        $_SESSION['admin_message_type'] = 'error';
+                    }
+                } elseif ($_FILES['hero_images_upload']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
+                     // Report other upload errors except NO_FILE
+                     $_SESSION['admin_message'] = "Erreur lors de l'upload du fichier " . htmlspecialchars($_FILES['hero_images_upload']['name'][$key]) . " lors de l'ajout : Code d'erreur " . $_FILES['hero_images_upload']['error'][$key] . ".";
+                     $_SESSION['admin_message_type'] = 'error';
+                }
             }
         }
+
+        // If upload was attempted but no files were successfully uploaded (and files were selected)
+        if (empty($uploaded_hero_images) && !empty($valid_files)) {
+             $_SESSION['admin_message'] = "Aucun fichier hero n'a pu être téléchargé avec succès lors de l'ajout.";
+             $_SESSION['admin_message_type'] = 'error';
+        }
     }
+    // --- End Handle Hero Images Upload for Add ---
+
+    // --- DEBUG: Inspect uploaded_hero_images array for Add ---
+    error_log("[PHP Debug - ADD] uploaded_hero_images array: " . print_r($uploaded_hero_images, true));
+    var_dump($uploaded_hero_images);
+    // --- End DEBUG ---
+
+    $hero_images_string = implode(',', $uploaded_hero_images);
+
     try {
         $pdo->beginTransaction();
         
-        // Insu00e9rer le lieu avec la catu00e9gorie
-        $stmt = $pdo->prepare("INSERT INTO lieux (nom, photo, photo2, photo3, photo4, description, id_ville, url_activite, categorie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$nom, $photo, $photo2, $photo3, $photo4, $desc, $id_ville, $url_activite, $categorie]);
+        // --- MODIFIED: Inserer le lieu avec seulement hero_images (removed old photo columns) ---
+        $stmt = $pdo->prepare("INSERT INTO lieux (nom, description, id_ville, url_activite, categorie, hero_images) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$nom, $desc, $id_ville, $url_activite, $categorie, $hero_images_string]);
         $lieu_id = $pdo->lastInsertId();
         
         // Ru00e9cupu00e9rer le nom de la ville
@@ -163,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom'])) {
             
             // Insu00e9rer la recommandation
             $stmt = $pdo->prepare("INSERT INTO recommandations (ville_id, titre, description, categorie, prix_min, prix_max, duree_min, duree_max, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$id_ville, $titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $photo]);
+            $stmt->execute([$id_ville, $titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $uploaded_hero_images[0]]);
         }
         
         $pdo->commit();
@@ -172,100 +200,136 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom'])) {
         exit();
     } catch (Exception $e) {
         $pdo->rollBack();
-        echo "Erreur : " . $e->getMessage();
+        $_SESSION['admin_message'] = "Erreur lors de la modification du lieu : " . $e->getMessage();
+        $_SESSION['admin_message_type'] = 'error';
+        header('Location: admin-places.php' . (isset($_GET['ville_id']) ? '?ville_id=' . intval($_GET['ville_id']) : ''));
+        exit();
     }
 }
 
 // Modification d'un lieu
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
+    // --- REMOVED: Debugging code ---
+    // error_log("[PHP Debug] FILES array: " . print_r($_FILES, true));
+    // var_dump($_FILES);
+    // --- End REMOVED Debug ---
+
     $edit_id = intval($_POST['edit_id']);
     $nom = $_POST['nom'];
     $desc = $_POST['description'];
     $id_ville = intval($_POST['id_ville']);
     $categorie = $_POST['categorie'] ?? '';
     $url_activite = $_POST['url_activite'] ?? '';
-    $photo = $_POST['photo'] ?? '';
-    $photo2 = $_POST['photo2'] ?? '';
-    $photo3 = $_POST['photo3'] ?? '';
-    $photo4 = $_POST['photo4'] ?? '';
     $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+    
+    $uploaded_hero_images = []; // Array to store paths of newly uploaded hero images
 
-    // Upload photo 1
-    if (isset($_FILES['photo_upload']) && $_FILES['photo_upload']['error'] === 0) {
-        $filename = $_FILES['photo_upload']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = uniqid() . '.' . $ext;
-            $upload_path = '../uploads/lieux/' . $new_filename;
-            if (!is_dir('../uploads/lieux')) {
-                mkdir('../uploads/lieux', 0777, true);
+    // --- Handle Hero Images Upload for Edit ---
+    // Check if files were uploaded and if the 'hero_images_upload' key exists and is an array
+    if (isset($_FILES['hero_images_upload']['name']) && is_array($_FILES['hero_images_upload']['name'])) {
+        // Filter out empty file inputs (when user doesn't select a file)
+        $valid_files = array_filter($_FILES['hero_images_upload']['name'], function($name) { return !empty($name); });
+
+        if (!empty($valid_files)) {
+            $uploadHeroDir = '../uploads/lieux/hero/'; // Separate directory for hero images
+            
+            // Attempt to create directory if it doesn't exist and set permissions
+            if (!is_dir($uploadHeroDir)) {
+                if (!mkdir($uploadHeroDir, 0775, true)) {
+                    $_SESSION['admin_message'] = "Erreur: Impossible de créer le dossier d'upload pour les images hero.";
+                    $_SESSION['admin_message_type'] = 'error';
+                    // Consider exiting here if directory creation is critical
+                }
             }
-            if (move_uploaded_file($_FILES['photo_upload']['tmp_name'], $upload_path)) {
-                $photo = 'uploads/lieux/' . $new_filename;
+            // Attempt to set permissions even if directory existed
+            if (!chmod($uploadHeroDir, 0775)) {
+                $_SESSION['admin_message'] = "Avertissement: Impossible de définir les permissions pour le dossier d'upload des images hero.";
+                $_SESSION['admin_message_type'] = 'warning';
             }
-        }
-    }
-    // Upload photo 2
-    if (isset($_FILES['photo2_upload']) && $_FILES['photo2_upload']['error'] === 0) {
-        $filename = $_FILES['photo2_upload']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = uniqid() . '.' . $ext;
-            $upload_path = '../uploads/lieux/' . $new_filename;
-            if (!is_dir('../uploads/lieux')) {
-                mkdir('../uploads/lieux', 0777, true);
-            }
-            if (move_uploaded_file($_FILES['photo2_upload']['tmp_name'], $upload_path)) {
-                $photo2 = 'uploads/lieux/' . $new_filename;
-            }
-        }
-    }
-    // Upload photo 3
-    if (isset($_FILES['photo3_upload']) && $_FILES['photo3_upload']['error'] === 0) {
-        $filename = $_FILES['photo3_upload']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = uniqid() . '.' . $ext;
-            $upload_path = '../uploads/lieux/' . $new_filename;
-            if (!is_dir('../uploads/lieux')) {
-                mkdir('../uploads/lieux', 0777, true);
-            }
-            if (move_uploaded_file($_FILES['photo3_upload']['tmp_name'], $upload_path)) {
-                $photo3 = 'uploads/lieux/' . $new_filename;
-            }
-        }
-    }
-    // Upload photo 4
-    if (isset($_FILES['photo4_upload']) && $_FILES['photo4_upload']['error'] === 0) {
-        $filename = $_FILES['photo4_upload']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = uniqid() . '.' . $ext;
-            $upload_path = '../uploads/lieux/' . $new_filename;
-            if (!is_dir('../uploads/lieux')) {
-                mkdir('../uploads/lieux', 0777, true);
-            }
-            if (move_uploaded_file($_FILES['photo4_upload']['tmp_name'], $upload_path)) {
-                $photo4 = 'uploads/lieux/' . $new_filename;
+
+            foreach (array_keys($_FILES['hero_images_upload']['name']) as $key) {
+                 // Check for upload errors for the current file
+                if ($_FILES['hero_images_upload']['error'][$key] === UPLOAD_ERR_OK) {
+                    $filename = $_FILES['hero_images_upload']['name'][$key];
+                    $tempPath = $_FILES['hero_images_upload']['tmp_name'][$key];
+                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+                    if (in_array($ext, $allowed)) {
+                        $new_filename = uniqid('hero_', true) . '.' . $ext;
+                        $targetPath = $uploadHeroDir . $new_filename;
+
+                        if (move_uploaded_file($tempPath, $targetPath)) {
+                            $uploaded_hero_images[] = 'uploads/lieux/hero/' . $new_filename;
+                        } else {
+                            $_SESSION['admin_message'] = "Erreur lors du déplacement du fichier hero " . htmlspecialchars($filename) . ".";
+                            $_SESSION['admin_message_type'] = 'error';
+                        }
+                    } else {
+                        $_SESSION['admin_message'] = "Type de fichier non autorisé pour " . htmlspecialchars($filename) . ". Seuls " . implode(', ', $allowed) . " sont autorisés.";
+                        $_SESSION['admin_message_type'] = 'error';
+                    }
+                } elseif ($_FILES['hero_images_upload']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
+                     // Report other upload errors except NO_FILE
+                     $_SESSION['admin_message'] = "Erreur lors de l'upload du fichier " . htmlspecialchars($_FILES['hero_images_upload']['name'][$key]) . " : Code d'erreur " . $_FILES['hero_images_upload']['error'][$key] . ".";
+                     $_SESSION['admin_message_type'] = 'error';
+                }
             }
         }
+
+        // If upload was attempted but no files were successfully uploaded (and files were selected)
+        if (empty($uploaded_hero_images) && !empty($valid_files)) {
+             $_SESSION['admin_message'] = "Aucun fichier hero n'a pu être téléchargé avec succès.";
+             $_SESSION['admin_message_type'] = 'error';
+        }
     }
+    // --- End Handle Hero Images Upload for Edit ---
+
+    // Determine the final hero_images string to save
+    // Fetch the current hero_images value from the database for this place
+    $stmt = $pdo->prepare("SELECT hero_images FROM lieux WHERE id = ?");
+    $stmt->execute([$edit_id]);
+    $existing_hero_images = $stmt->fetchColumn();
+    
+    // Convertir la chaîne existante en tableau
+    $existing_hero_array = [];
+    if (!empty($existing_hero_images)) {
+        $existing_hero_array = array_filter(array_map('trim', explode(',', $existing_hero_images)));
+    }
+    
+    // Combiner les images existantes avec les nouvelles images téléchargées
+    $all_hero_images = array_merge($existing_hero_array, $uploaded_hero_images);
+    
+    // Supprimer les doublons et les valeurs vides
+    $all_hero_images = array_filter(array_unique($all_hero_images));
+    
+    // Créer la chaîne finale pour la base de données
+    $hero_images_string = implode(',', $all_hero_images);
+    
+    // Débogage des images hero
+    error_log("[DEBUG HERO IMAGES] Images existantes: " . print_r($existing_hero_array, true));
+    error_log("[DEBUG HERO IMAGES] Nouvelles images uploadées: " . print_r($uploaded_hero_images, true));
+    error_log("[DEBUG HERO IMAGES] Toutes les images combinées: " . print_r($all_hero_images, true));
+    error_log("[DEBUG HERO IMAGES] Chaîne finale: " . $hero_images_string);
 
     try {
         $pdo->beginTransaction();
         
-        // Mettre à jour le lieu avec la catégorie
-        $stmt = $pdo->prepare("UPDATE lieux SET nom = ?, photo = ?, photo2 = ?, photo3 = ?, photo4 = ?, description = ?, id_ville = ?, url_activite = ?, categorie = ? WHERE id = ?");
-        $stmt->execute([$nom, $photo, $photo2, $photo3, $photo4, $desc, $id_ville, $url_activite, $categorie, $edit_id]);
+        // --- MODIFIED: Update only the hero_images column (and other relevant fields) ---
+        $stmt = $pdo->prepare("UPDATE lieux SET nom = ?, description = ?, id_ville = ?, url_activite = ?, categorie = ?, hero_images = ? WHERE id = ?");
+        $stmt->execute([$nom, $desc, $id_ville, $url_activite, $categorie, $hero_images_string, $edit_id]);
         
-        // Récupérer le nom de la ville
+        // Récupérer le nom de la ville pour le message de succès
         $stmt = $pdo->prepare("SELECT nom FROM villes WHERE id = ?");
         $stmt->execute([$id_ville]);
         $ville_nom = $stmt->fetchColumn();
         
-        // Vérifier si une recommandation existe déjà pour ce lieu
+        // Handle recommendation update/insertion (remains largely unchanged, ensure it uses current photo if needed, though hero_images is separate)
+        // Note: The recommendation image_url currently uses $photo. If you want it to use one of the hero images, you'd need to pick one from $hero_images_string.
+        // For now, assuming recommendation image is separate or uses a default.
+        
+        // Vérifier si une recommandation existe déjà pour ce lieu (using nom for matching)
         $stmt = $pdo->prepare("SELECT id FROM recommandations WHERE ville_id = ? AND titre LIKE ?");
-        $stmt->execute([$id_ville, 'Visite de ' . $nom . '%']);
+        $stmt->execute([$id_ville, '%' . $nom . '%']); // Using LIKE %% to find recommendation by name
         $recommandation_id = $stmt->fetchColumn();
         
         if (!empty($categorie)) {
@@ -338,21 +402,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
             if ($recommandation_id) {
                 // Mettre à jour la recommandation existante
                 $stmt = $pdo->prepare("UPDATE recommandations SET titre = ?, description = ?, categorie = ?, prix_min = ?, prix_max = ?, duree_min = ?, duree_max = ?, image_url = ? WHERE id = ?");
-                $stmt->execute([$titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $photo, $recommandation_id]);
+                $stmt->execute([$titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $uploaded_hero_images[0], $recommandation_id]);
             } else {
                 // Créer une nouvelle recommandation
                 $stmt = $pdo->prepare("INSERT INTO recommandations (ville_id, titre, description, categorie, prix_min, prix_max, duree_min, duree_max, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$id_ville, $titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $photo]);
+                $stmt->execute([$id_ville, $titre, $description, $categorie, $prix_min, $prix_max, $duree_min, $duree_max, $uploaded_hero_images[0]]);
             }
         }
         
         $pdo->commit();
+        // --- NEW: Success message after successful update ---
+        $_SESSION['admin_message'] = "Lieu '" . htmlspecialchars($nom) . "' modifié avec succès.";
+        $_SESSION['admin_message_type'] = 'success';
+
         // Rediriger vers la page des lieux filtrée par la ville sélectionnée
         header('Location: admin-places.php?ville_id=' . $id_ville);
         exit();
     } catch (Exception $e) {
         $pdo->rollBack();
-        echo "Erreur : " . $e->getMessage();
+        $_SESSION['admin_message'] = "Erreur lors de la modification du lieu : " . $e->getMessage();
+        $_SESSION['admin_message_type'] = 'error';
+        header('Location: admin-places.php' . (isset($_GET['ville_id']) ? '?ville_id=' . intval($_GET['ville_id']) : ''));
+        exit();
     }
 }
 
@@ -361,6 +432,55 @@ if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
     $pdo->prepare("DELETE FROM lieux WHERE id = ?")->execute([$id]);
     header('Location: admin-places.php');
+    exit();
+}
+
+// Suppression d'une image hero individuelle
+if ((isset($_GET['delete_hero_image']) && $_GET['delete_hero_image'] == 1) && isset($_GET['place_id']) && isset($_GET['image_path'])) {
+    $place_id = intval($_GET['place_id']);
+    $image_path = urldecode($_GET['image_path']);
+    
+    try {
+        // Récupérer les images hero actuelles
+        $stmt = $pdo->prepare("SELECT hero_images FROM lieux WHERE id = ?");
+        $stmt->execute([$place_id]);
+        $hero_images_string = $stmt->fetchColumn();
+        
+        if ($hero_images_string) {
+            // Convertir la chaîne en tableau et nettoyer les espaces
+            $hero_images = array_map('trim', explode(',', $hero_images_string));
+            
+            // Retirer l'image spécifiée du tableau
+            $hero_images = array_filter($hero_images, function($img) use ($image_path) {
+                return trim($img) !== trim($image_path);
+            });
+            
+            // Réindexer le tableau pour éviter les clés non séquentielles
+            $hero_images = array_values($hero_images);
+            
+            // Mettre à jour la base de données avec la nouvelle liste d'images
+            $new_hero_images = implode(',', $hero_images);
+            
+            $update_stmt = $pdo->prepare("UPDATE lieux SET hero_images = ? WHERE id = ?");
+            $result = $update_stmt->execute([$new_hero_images, $place_id]);
+            
+            // Supprimer physiquement le fichier (optionnel)
+            $file_path = '../' . $image_path;
+            if (file_exists($file_path)) {
+                @unlink($file_path);
+            }
+            
+            $_SESSION['admin_message'] = "L'image a été supprimée avec succès.";
+            $_SESSION['admin_message_type'] = 'success';
+        }
+    } catch (Exception $e) {
+        // En cas d'erreur, enregistrer l'erreur et afficher un message
+        $_SESSION['admin_message'] = "Erreur lors de la suppression de l'image: " . $e->getMessage();
+        $_SESSION['admin_message_type'] = 'error';
+    }
+    
+    // Rediriger vers la page d'édition
+    header('Location: admin-places.php?edit=' . $place_id);
     exit();
 }
 
@@ -394,6 +514,15 @@ if ($ville_filter > 0) {
 }
 
 $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
+
+// --- Display admin messages ---
+if (isset($_SESSION['admin_message'])) {
+    $message = $_SESSION['admin_message'];
+    $message_type = $_SESSION['admin_message_type'] ?? 'info'; // default to info
+    unset($_SESSION['admin_message']);
+    unset($_SESSION['admin_message_type']);
+}
+// --- End Display admin messages ---
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -407,6 +536,85 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
     <style>
         body, .admin-table, .admin-table td, .admin-table th, .form-group, .form-group input, .form-group select, .form-group textarea {
             font-size: 0.91rem;
+        }
+        
+        /* Styles modernes pour les messages d'administration */
+        .admin-message {
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            font-weight: 500;
+            position: relative;
+            padding-left: 55px;
+            animation: slideInDown 0.5s ease-out forwards;
+            border-left: 5px solid;
+            display: flex;
+            align-items: center;
+        }
+        
+        .admin-message::before {
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 20px;
+            font-size: 1.2rem;
+        }
+        
+        .admin-message-success {
+            background-color: #e7f7ef;
+            color: #1d6d4e;
+            border-color: #28a745;
+        }
+        
+        .admin-message-success::before {
+            content: '\f058'; /* check-circle */
+            color: #28a745;
+        }
+        
+        .admin-message-error {
+            background-color: #fef0f0;
+            color: #b02a37;
+            border-color: #dc3545;
+        }
+        
+        .admin-message-error::before {
+            content: '\f057'; /* times-circle */
+            color: #dc3545;
+        }
+        
+        .admin-message-warning {
+            background-color: #fff8e6;
+            color: #997404;
+            border-color: #ffc107;
+        }
+        
+        .admin-message-warning::before {
+            content: '\f071'; /* exclamation-triangle */
+            color: #ffc107;
+        }
+        
+        .admin-message-info {
+            background-color: #e6f3ff;
+            color: #0a58ca;
+            border-color: #0d6efd;
+        }
+        
+        .admin-message-info::before {
+            content: '\f05a'; /* info-circle */
+            color: #0d6efd;
+        }
+        
+        /* Animation pour les messages */
+        @keyframes slideInDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
         .admin-table {
             width: 100%;
@@ -582,6 +790,11 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
 
     <main style="margin-top:100px;">
     <div class="container">
+            <?php if (isset($message)): ?>
+                <div class="admin-message admin-message-<?= $message_type ?>">
+                    <?= htmlspecialchars($message) ?>
+                </div>
+            <?php endif; ?>
             <div class="section-title">
                 <h2>Gestion des lieux</h2>
                 <?php if (isset($ville_filter) && $ville_filter > 0 && isset($filtered_city_name)): ?>
@@ -604,32 +817,26 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
                             <input type="text" name="nom" class="form-control" placeholder="Nom du lieu" required value="<?= isset($editPlace) ? htmlspecialchars($editPlace['nom']) : '' ?>">
                         </div>
                         <div class="form-group">
-                            <input type="text" name="photo" class="form-control" placeholder="URL ou nom du fichier photo 1" value="<?= isset($editPlace) ? htmlspecialchars($editPlace['photo']) : '' ?>">
-                        </div>
-                        <div class="form-group">
-                            <label for="photo_upload">Ou uploader une image 1 :</label>
-                            <input type="file" name="photo_upload" id="photo_upload" accept="image/*">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" name="photo2" class="form-control" placeholder="URL ou nom du fichier photo 2" value="<?= isset($editPlace) ? htmlspecialchars($editPlace['photo2'] ?? '') : '' ?>">
-                        </div>
-                        <div class="form-group">
-                            <label for="photo2_upload">Ou uploader une image 2 :</label>
-                            <input type="file" name="photo2_upload" id="photo2_upload" accept="image/*">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" name="photo3" class="form-control" placeholder="URL ou nom du fichier photo 3" value="<?= isset($editPlace) ? htmlspecialchars($editPlace['photo3'] ?? '') : '' ?>">
-                        </div>
-                        <div class="form-group">
-                            <label for="photo3_upload">Ou uploader une image 3 :</label>
-                            <input type="file" name="photo3_upload" id="photo3_upload" accept="image/*">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" name="photo4" class="form-control" placeholder="URL ou nom du fichier photo 4" value="<?= isset($editPlace) ? htmlspecialchars($editPlace['photo4'] ?? '') : '' ?>">
-                        </div>
-                        <div class="form-group">
-                            <label for="photo4_upload">Ou uploader une image 4 :</label>
-                            <input type="file" name="photo4_upload" id="photo4_upload" accept="image/*">
+                            <label for="hero_images_upload">Images pour le Hero Slider (plusieurs fichiers possibles) :</label>
+                            <input type="file" name="hero_images_upload[]" id="hero_images_upload" accept="image/*" multiple>
+                            <?php if (isset($editPlace) && !empty($editPlace['hero_images'])): ?>
+                                <div style="margin-top: 15px; font-size: 0.9em; color: #555;">
+                                    <p style="margin-bottom: 10px;"><strong>Images actuelles :</strong></p>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                    <?php
+                                    $current_hero_images = array_map('trim', explode(',', $editPlace['hero_images']));
+                                    foreach ($current_hero_images as $img_path) {
+                                        if (!empty($img_path)) {
+                                            echo '<div style="position: relative; width: 80px;">';
+                                            echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;">';
+                                            echo '<a href="?delete_hero_image=1&place_id=' . $editPlace['id'] . '&image_path=' . urlencode($img_path) . '" onclick="return confirm(\'Supprimer cette image ?\')" style="position: absolute; top: -5px; right: -5px; background: #dc3545; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;"><i class="fas fa-times"></i></a>';
+                                            echo '</div>';
+                                        }
+                                    }
+                                    ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <div class="form-group">
                             <input type="text" name="description" class="form-control" placeholder="Description" required value="<?= isset($editPlace) ? htmlspecialchars($editPlace['description']) : '' ?>">
@@ -647,17 +854,33 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <div class="form-group">
                             <select name="categorie" class="form-control" required>
-                                <option value="">Catu00e9gorie</option>
-                                <option value="hotels" <?= (isset($editPlace) && $editPlace['categorie'] == 'hotels') ? 'selected' : '' ?>>Hôtels</option>
-                                <option value="restaurants" <?= (isset($editPlace) && $editPlace['categorie'] == 'restaurants') ? 'selected' : '' ?>>Restaurants</option>
-                                <option value="parcs" <?= (isset($editPlace) && $editPlace['categorie'] == 'parcs') ? 'selected' : '' ?>>Parcs</option>
-                                <option value="plages" <?= (isset($editPlace) && $editPlace['categorie'] == 'plages') ? 'selected' : '' ?>>Plages</option>
-                                <option value="cinemas" <?= (isset($editPlace) && $editPlace['categorie'] == 'cinemas') ? 'selected' : '' ?>>Cinémas</option>
-                                <option value="theatres" <?= (isset($editPlace) && $editPlace['categorie'] == 'theatres') ? 'selected' : '' ?>>Théâtres</option>
-                                <option value="monuments" <?= (isset($editPlace) && $editPlace['categorie'] == 'monuments') ? 'selected' : '' ?>>Monuments</option>
-                                <option value="musees" <?= (isset($editPlace) && $editPlace['categorie'] == 'musees') ? 'selected' : '' ?>>Musées</option>
-                                <option value="shopping" <?= (isset($editPlace) && $editPlace['categorie'] == 'shopping') ? 'selected' : '' ?>>Shopping</option>
-                                <option value="vie_nocturne" <?= (isset($editPlace) && $editPlace['categorie'] == 'vie_nocturne') ? 'selected' : '' ?>>Vie nocturne</option>
+                                <option value="">Catégorie</option>
+                                <?php
+                                // Utiliser le même tableau de catégories que pour le filtre
+                                $category_display_names = [
+                                    'hotels' => 'Hôtels',
+                                    'restaurants' => 'Restaurants',
+                                    'parcs' => 'Parcs',
+                                    'plages' => 'Plages',
+                                    'cinemas' => 'Cinémas',
+                                    'shopping' => 'Shopping',
+                                    'theatres' => 'Théâtres',
+                                    'vie_nocturne' => 'Vie nocturne',
+                                    'monuments' => 'Monuments',
+                                    'musees' => 'Musées',
+                                    'nature' => 'Nature',
+                                    'culture' => 'Culture',
+                                    'histoire' => 'Histoire'
+                                ];
+                                
+                                // Trier les catégories par ordre alphabétique de leur nom d'affichage
+                                asort($category_display_names);
+                                
+                                foreach ($category_display_names as $cat_value => $cat_display_name) {
+                                    $selected = (isset($editPlace) && strtolower($editPlace['categorie']) == strtolower($cat_value)) ? 'selected' : '';
+                                    echo "<option value=\"$cat_value\" $selected>$cat_display_name</option>";
+                                }
+                                ?>
                             </select>
                         </div>
                         <button type="submit" class="btn-solid" style="width:100%;">
@@ -681,17 +904,48 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
                         <?php endforeach; ?>
                     </select>
                     <select id="filterCategorie" class="form-control">
-                        <option value="">Toutes les catégories</option>
+                        <option value="">Toutes les catu00e9gories</option>
                         <?php
-                        $categories = [];
-                        foreach ($places as $place) {
-                            if (!empty($place['categorie']) && !in_array($place['categorie'], $categories)) {
-                                $categories[] = $place['categorie'];
-                            }
+                        // Define a mapping for display names (avec normalisation)
+                        $category_display_names = [
+                            'hotels' => 'Hôtels',
+                            'restaurants' => 'Restaurants',
+                            'parcs' => 'Parcs',
+                            'plages' => 'Plages',
+                            'cinemas' => 'Cinémas',
+                            'shopping' => 'Shopping',
+                            'theatres' => 'Théâtres',
+                            'vie_nocturne' => 'Vie nocturne',
+                            'monuments' => 'Monuments',
+                            'musees' => 'Musées',
+                            'nature' => 'Nature',
+                            'culture' => 'Culture',
+                            'histoire' => 'Histoire'
+                            // Add any other categories here
+                        ];
+                        
+                        // Collect unique categories from existing places in the database
+                        $stmt = $pdo->query("SELECT DISTINCT categorie FROM lieux WHERE categorie IS NOT NULL AND categorie != ''");
+                        $db_categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                        
+                        // Normaliser les catégories de la base de données (minuscules)
+                        $normalized_db_categories = [];
+                        foreach ($db_categories as $cat) {
+                            $normalized_db_categories[] = strtolower($cat);
                         }
-                        foreach ($categories as $cat): ?>
-                            <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
-                        <?php endforeach; ?>
+                        
+                        // Créer un tableau unique de catégories normalisées
+                        $all_categories = array_unique(array_merge(array_keys($category_display_names), $normalized_db_categories));
+                        sort($all_categories);
+
+                        // Utiliser uniquement les catégories définies dans $category_display_names pour éviter les doublons
+                        // Trier les catégories par ordre alphabétique de leur nom d'affichage
+                        asort($category_display_names);
+                        
+                        foreach ($category_display_names as $cat_value => $cat_display_name) {
+                            echo '<option value="' . htmlspecialchars($cat_value) . '">' . htmlspecialchars($cat_display_name) . '</option>';
+                        }
+                         ?>
                     </select>
                     <div class="search-bar-admin">
                         <input type="text" id="searchLieu" class="form-control" placeholder="Rechercher un lieu..." autocomplete="off">
@@ -704,27 +958,38 @@ $cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
                             <tr>
                                 <th>ID</th>
                                 <th>Nom</th>
-                                <th>Photo</th>
+                                <th>Hero Photos</th>
                                 <th>Description</th>
                                 <th>Ville</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
+            <?php if (empty($places)): ?>
+                <tr><td colspan="6" style="text-align:center;color:var(--secondary-color);">Aucun lieu enregistré.</td></tr>
+            <?php endif; ?>
             <?php foreach ($places as $place): ?>
                 <tr data-ville="<?= htmlspecialchars($place['ville_nom']) ?>" data-categorie="<?= htmlspecialchars($place['categorie'] ?? '') ?>">
                                     <td data-label="ID"><?= $place['id'] ?></td>
                                     <td data-label="Nom"><?= htmlspecialchars($place['nom']) ?></td>
-                                    <td data-label="Photo">
-                                        <?php if ($place['photo']): ?>
-                                            <?php if (strpos($place['photo'], 'uploads/') === 0): ?>
-                                                <img src="../<?= htmlspecialchars($place['photo']) ?>" alt="<?= htmlspecialchars($place['nom']) ?>" class="place-thumb">
-                                            <?php else: ?>
-                                                <img src="<?= htmlspecialchars($place['photo']) ?>" alt="<?= htmlspecialchars($place['nom']) ?>" class="place-thumb">
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <div class="place-thumb"><i class="fas fa-image" style="color:#bbb;font-size:1.5em;"></i></div>
-                                        <?php endif; ?>
+                                    <td data-label="Hero Photos">
+                                        <?php
+                                        $hero_images = [];
+                                        if (!empty($place['hero_images'])) {
+                                            $hero_images = array_map('trim', explode(',', $place['hero_images']));
+                                        }
+                                        
+                                        if (!empty($hero_images)) {
+                                            foreach ($hero_images as $img_path) {
+                                                if (!empty($img_path)) {
+                                                     // Assuming images are in ../uploads/lieux/hero/ or similar accessible path
+                                                    echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 40px; height: 40px; object-fit: cover; margin-right: 5px; border-radius: 4px;">';
+                                                }
+                                            }
+                                        } else {
+                                            echo '<span style="color:var(--secondary-color);font-size:0.9em;">Aucune</span>';
+                                        }
+                                        ?>
                                     </td>
                                     <td data-label="Description"><?= htmlspecialchars($place['description']) ?></td>
                                     <td data-label="Ville"><?= htmlspecialchars($place['ville_nom']) ?></td>

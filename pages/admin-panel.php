@@ -66,7 +66,7 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
             <ul class="nav-menu">
                 <li><a href="../index.php">Accueil</a></li>
                 <li><a href="../destinations.php">Destinations</a></li>
-                <li><a href="../experiences.php">Expériences</a></li>
+                <li><a href="../recommandations.php">Recommandations</a></li>
             </ul>
             <div class="auth-buttons">
                 <a href="admin-panel.php" class="btn-outline" style="margin-right:10px;">Panel Admin</a>

@@ -38,107 +38,287 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - Maroc Authentique</title>
+    <title>Connexion - VMaroc</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/montserrat-font.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/header.css">
+    <style>
+        :root {
+            --primary-color: #e30613;
+            --secondary-color: #004aad;
+            --text-color: #333;
+            --white: #fff;
+            --error: #dc3545;
+            --shadow-sm: 0 2px 5px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-color);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Masquer le header original pour cette page */
+        header {
+            display: none;
+        }
+        
+        /* Page de connexion avec image d'arrière-plan */
+        .login-page {
+            min-height: 100vh;
+            width: 100%;
+            background: url('images/login1.png') center/cover no-repeat;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        /* Logo VMaroc en haut */
+        .vmaroc-logo {
+            width: 100px;
+            height: auto;
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3;
+        }
+        
+        /* Formulaire de connexion */
+        .login-content {
+            position: absolute;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 450px;
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+        }
+        /* Formulaire de connexion */
+        .login-form {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        
+        .input-group {
+            position: relative;
+            width: 100%;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px 40px 12px 40px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50px;
+            font-size: 1rem;
+            background-color: var(--white);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+        }
+        
+        .input-group .icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            z-index: 2;
+        }
+        
+        .toggle-pw {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #999;
+            font-size: 1rem;
+            padding: 5px;
+            z-index: 2;
+        }
+        
+        .login-form button[type="submit"] {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            margin-top: 0.5rem;
+        }
+        
+        .login-form button[type="submit"]:hover {
+            background: #0056c8;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .login-form button[type="submit"]:active {
+            transform: translateY(0);
+        }
+        
+        /* Liens en bas */
+        .login-links {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+        
+        .login-links a {
+            color: white;
+            text-decoration: none;
+            background-color: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .login-links a:hover {
+            background-color: rgba(255,255,255,0.3);
+        }
+        
+        .error-message {
+            color: var(--error);
+            background: rgba(220, 53, 69, 0.1);
+            border-left: 4px solid var(--error);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .error-message i {
+            font-size: 1.2rem;
+        }
+        /* Media Queries */
+        @media (max-width: 768px) {
+            .maroc-emblem {
+                width: 80px;
+                top: 60px;
+            }
+            
+            .vmaroc-logo {
+                width: 90%;
+                top: 35%;
+            }
+            
+            .login-content {
+                bottom: 10%;
+                max-width: 90%;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .maroc-emblem {
+                width: 60px;
+                top: 40px;
+            }
+            
+            .login-links {
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- Header -->
-    <header>
-        <div class="container header-container">
-            <a href="index.php" class="logo">
-                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img" style="height:48px;">
-            </a>
-            <ul class="nav-menu">
-                <li><a href="index.php">Accueil</a></li>
-                <li><a href="destinations.php">Destinations</a></li>
-                <li><a href="experiences.php">Expériences</a></li>
-            </ul>
-            <div class="auth-buttons">
-                <a href="login.php" class="btn-outline active">Connexion</a>
-                <a href="register.php" class="btn-primary">Inscription</a>
+
+    <div class="login-page">
+        <!-- Logo VMaroc en haut avec lien vers la page d'accueil -->
+        <a href="index.php">
+            <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="vmaroc-logo">
+        </a>
+        
+        <div class="login-content">
+            
+            <?php if (isset($error_message)): ?>
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <?= htmlspecialchars($error_message) ?>
+                </div>
+            <?php endif; ?>
+            
+            <form method="POST" class="login-form" autocomplete="off">
+                <div class="input-group">
+                    <span class="icon"><i class="fas fa-user"></i></span>
+                    <input type="text" name="email" placeholder="Nom d'utilisateur" required>
+                </div>
+                
+                <div class="input-group">
+                    <span class="icon"><i class="fas fa-lock"></i></span>
+                    <input type="password" name="password" placeholder="Mot de passe" id="login-password" required>
+                    <button type="button" class="toggle-pw" tabindex="0" aria-label="Afficher le mot de passe" onclick="togglePassword('login-password', this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                
+                <button type="submit">Commencer</button>
+            </form>
+            
+            <div class="login-links">
+                <a href="register.php">Créer un compte</a>
+                <a href="#">Besoin d'aide ?</a>
             </div>
         </div>
-    </header>
-
-    <main style="margin-top: 100px;">
-        <div class="container">
-            <div class="auth-container">
-                <div class="auth-card">
-                    <div class="auth-header">
-                        <h2>Connexion</h2>
-                        <p>Connectez-vous pour accéder à votre compte</p>
-                    </div>
-
-                    <?php if (isset($error_message)): ?>
-                        <div class="alert alert-error">
-                            <?= htmlspecialchars($error_message) ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" class="auth-form">
-                        <div class="form-group">
-                            <label for="email">Email</label>
-                            <input type="email" id="email" name="email" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="password">Mot de passe</label>
-                            <input type="password" id="password" name="password" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="remember">
-                                Se souvenir de moi
-                            </label>
-                        </div>
-
-                        <button type="submit" class="btn-primary btn-block">Se connecter</button>
-                    </form>
-
-                    <div class="auth-footer">
-                        <p>Vous n'avez pas de compte ? <a href="register.php">Inscrivez-vous</a></p>
-                        <a href="#" class="forgot-password">Mot de passe oublié ?</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-col">
-                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img" style="height:60px;">
-                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
-                    </div>
-                </div>
-                <div class="footer-col">
-                    <h3>Liens Rapides</h3>
-                    <ul>
-                        <li><a href="index.php">Accueil</a></li>
-                        <li><a href="destinations.php">Destinations</a></li>
-                        <li><a href="experiences.php">Expériences</a></li>
-                    </ul>
-                </div>
-                <div class="footer-col">
-                    <h3>Contact</h3>
-                    <p>contact@marocauthentique.com</p>
-                    <p>+212 522 123 456</p>
-                </div>
-            </div>
-            <div class="copyright">
-                <p>© 2025 Maroc Authentique. Tous droits réservés.</p>
-            </div>
-        </div>
-    </footer>
+    </div>
+    <script>
+        function togglePassword(id, el) {
+            const passwordInput = document.getElementById(id);
+            const icon = el.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+                el.setAttribute('aria-label', 'Masquer le mot de passe');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+                el.setAttribute('aria-label', 'Afficher le mot de passe');
+            }
+        }
+    </script>
 </body>
-</html> 
+</html>

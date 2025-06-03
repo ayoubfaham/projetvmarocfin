@@ -1,0 +1,94 @@
+/* Styles modernes pour les messages d'administration */
+.admin-message {
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    font-weight: 500;
+    position: relative;
+    padding-left: 55px;
+    animation: slideInDown 0.5s ease-out forwards;
+    border-left: 5px solid;
+    display: flex;
+    align-items: center;
+}
+
+.admin-message::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    left: 20px;
+    font-size: 1.2rem;
+}
+
+.admin-message-success {
+    background-color: #e7f7ef;
+    color: #1d6d4e;
+    border-color: #28a745;
+}
+
+.admin-message-success::before {
+    content: '\f058'; /* check-circle */
+    color: #28a745;
+}
+
+.admin-message-error {
+    background-color: #fef0f0;
+    color: #b02a37;
+    border-color: #dc3545;
+}
+
+.admin-message-error::before {
+    content: '\f057'; /* times-circle */
+    color: #dc3545;
+}
+
+.admin-message-warning {
+    background-color: #fff8e6;
+    color: #997404;
+    border-color: #ffc107;
+}
+
+.admin-message-warning::before {
+    content: '\f071'; /* exclamation-triangle */
+    color: #ffc107;
+}
+
+.admin-message-info {
+    background-color: #e6f3ff;
+    color: #0a58ca;
+    border-color: #0d6efd;
+}
+
+.admin-message-info::before {
+    content: '\f05a'; /* info-circle */
+    color: #0d6efd;
+}
+
+/* Animation pour les messages */
+@keyframes slideInDown {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Style pour le bouton de fermeture du message */
+.admin-message .close-message {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.admin-message .close-message:hover {
+    opacity: 1;
+}

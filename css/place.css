@@ -28,7 +28,7 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     position: relative;
     animation: fadeInUp 1s ease-out;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .place-category {
@@ -125,7 +125,7 @@
     font-size: 1.75rem;
     color: #333;
     margin-bottom: 1.25rem;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .place-details {
@@ -164,7 +164,7 @@
     font-size: 1.75rem;
     color: #333;
     margin-bottom: 1.25rem;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .services-grid {
@@ -212,7 +212,7 @@
     font-size: 1.75rem;
     color: #333;
     margin-bottom: 1.25rem;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .description p {
@@ -234,7 +234,7 @@
     font-size: 1.75rem;
     color: #333;
     margin-bottom: 1.25rem;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .map-container {
@@ -260,7 +260,7 @@
     font-weight: 700;
     color: #333;
     margin-bottom: 0.5rem;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .price-period {

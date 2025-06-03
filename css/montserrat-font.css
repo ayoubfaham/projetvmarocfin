@@ -1,0 +1,36 @@
+/* Police Montserrat pour tout le site VMaroc */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+/* Application globale de la police Montserrat */
+html, body, 
+h1, h2, h3, h4, h5, h6,
+p, span, a, button, input, select, textarea, 
+div, section, article, aside, header, footer, nav,
+table, th, td, li, ul, ol {
+    font-family: 'Montserrat', Arial, sans-serif !important;
+}
+
+/* Styles spécifiques pour les titres */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+}
+
+/* Styles pour les boutons et éléments interactifs */
+button, .btn, a.btn, input[type="submit"], input[type="button"] {
+    font-weight: 500;
+}
+
+/* Styles pour le texte normal */
+p, span, div, li {
+    font-weight: 400;
+}
+
+/* Styles pour les éléments légers */
+.light-text, .subtitle, .caption {
+    font-weight: 300;
+}
+
+/* Styles pour les éléments en gras */
+.bold-text, strong, b {
+    font-weight: 700;
+}

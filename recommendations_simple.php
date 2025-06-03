@@ -26,11 +26,16 @@ try {
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recommandations - VMaroc</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/montserrat-font.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/header.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Montserrat', Arial, sans-serif;
             line-height: 1.6;
             margin: 0;
             padding: 20px;
@@ -101,14 +106,11 @@ try {
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Header -->
+    <?php include 'includes/header.php'; ?>
+    
+    <div class="container" style="margin-top: 100px;">
         <h1>Recommandations de Voyage</h1>
-        
-        <ul class="nav-menu">
-            <li><a href="index.php">Accueil</a></li>
-            <li><a href="destinations.php">Destinations</a></li>
-            <li><a href="recommendations_simple.php">Recommandations</a></li>
-        </ul>
         
         <div class="form-container">
             <form method="POST" action="">

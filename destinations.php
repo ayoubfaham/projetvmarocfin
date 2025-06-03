@@ -1,9 +1,23 @@
 <?php
 session_start();
 require_once 'config/database.php';
+require_once 'includes/city_image_helper.php';
 
-// Récupération de toutes les villes
-$stmt = $pdo->query("SELECT * FROM villes ORDER BY nom");
+// Pagination settings
+$perPage = 6; // Number of destinations per page
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$offset = ($page - 1) * $perPage;
+
+// Récupération du nombre total de destinations
+$totalStmt = $pdo->query("SELECT COUNT(*) as total FROM villes");
+$totalDestinations = $totalStmt->fetch()['total'];
+$totalPages = ceil($totalDestinations / $perPage);
+
+// Récupération des destinations paginées
+$stmt = $pdo->prepare("SELECT * FROM villes ORDER BY nom LIMIT :limit OFFSET :offset");
+$stmt->bindParam(':limit', $perPage, PDO::PARAM_INT);
+$stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+$stmt->execute();
 $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -11,15 +25,19 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Destinations - Maroc Authentique</title>
+    <title>Destinations - VMaroc</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/montserrat-font.css">
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/header.css">
     <style>
         body, .destination-content, .destination-content p, .place-meta, .star-note-value, .place-address {
+            font-family: 'Montserrat', sans-serif;
             font-size: 0.97rem;
         }
         .destination-content h3 {
+            font-family: 'Montserrat', sans-serif;
             font-size: 1.25rem;
             font-weight: bold;
             margin-bottom: 6px;
@@ -61,55 +79,217 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             font-size: 1.1em;
         }
     </style>
+    <style>
+        /* Styles for header when integrated in hero */
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        /* Ensure header container content is visible */
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+        }
+
+        /* Adjust colors for header elements on dark background */
+         header .nav-menu li a,
+         header .auth-buttons a {
+            color: #fff !important; /* White text */
+            transition: color 0.2s, border-bottom 0.2s;
+         }
+
+         header .nav-menu li a:hover,
+         header .nav-menu li a.active {
+             color: #bfa14a !important; /* Gold color on hover/active */
+             border-bottom-color: #f3e9d1; /* Light gold border */
+         }
+
+        header .btn-outline {
+            border-color: #bfa14a !important; /* Gold border */
+            color: #fff !important; /* White text */
+        }
+        header .btn-outline:hover {
+             background: #bfa14a !important; /* Gold background on hover */
+             color: #fff !important; /* White text on hover */
+        }
+
+        header .btn-primary {
+             background: #bfa14a !important; /* Gold background */
+             color: #fff !important; /* White text */
+        }
+        header .btn-primary:hover {
+             background: #8B7355 !important; /* Darker gold on hover */
+        }
+
+        /* Adjust logo size if needed */
+        header .logo-img {
+            height: 70px; /* Ensure consistent logo size */
+        }
+
+    </style>
+    <style>
+        /* Styles for the hero slider */
+        .hero-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Below overlay and content */
+        }
+
+        .hero-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0; /* Start hidden */
+            transition: opacity 1.5s ease-in-out; /* Fade transition */
+        }
+
+        .hero-slide.active {
+            opacity: 1; /* Currently visible slide */
+        }
+
+        /* Styles for navigation arrows */
+         .hero-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #fff;
+            font-size: 2.5rem;
+            cursor: pointer;
+            z-index: 4; /* Above content and overlay */
+            padding: 20px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+            transition: color 0.2s, text-shadow 0.2s;
+         }
+
+         .hero-arrow:hover {
+            color: #bfa14a; /* Gold color on hover */
+            text-shadow: 0 2px 15px rgba(0,0,0,0.6);
+         }
+
+         .left-arrow {
+            left: 20px;
+         }
+
+         .right-arrow {
+            right: 20px;
+         }
+
+        @media (max-width: 768px) {
+            .hero-arrow {
+                font-size: 1.8rem;
+                padding: 10px;
+            }
+            .left-arrow {
+                left: 10px;
+            }
+            .right-arrow {
+                right: 10px;
+            }
+        }
+
+    </style>
+    <style>
+        /* Styles for the two-column layout */
+        
+
+        /* Styles for pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 32px 0 48px 0; /* Adjusted margin */
+            flex-wrap: wrap;
+        }
+        .pagination-btn {
+            background: #fff;
+            color: #bfa14a;
+            border: 1.5px solid #e9cba7;
+            border-radius: 18px;
+            padding: 8px 16px;
+            font-size: 0.95rem;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            outline: none;
+            text-decoration: none;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            box-sizing: border-box;
+        }
+        .pagination-btn.active,
+        .pagination-btn:focus {
+            background: #bfa14a;
+            color: #fff;
+            border-color: #bfa14a;
+            box-shadow: 0 3px 10px rgba(191,161,74,0.3);
+        }
+        .pagination-btn:hover:not(.active) {
+            background: #fcf8f2;
+            color: #8B7355;
+            border-color: #bfa14a;
+            box-shadow: 0 2px 8px rgba(191,161,74,0.2);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: #f8f8f8;
+            color: #aaa;
+            border-color: #eee;
+            box-shadow: none;
+        }
+    </style>
 </head>
 <body>
-    <!-- Header -->
-    <header>
-        <div class="container header-container">
-            <a href="index.php" class="logo">
-                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img" style="height:70px;">
-            </a>
-            <ul class="nav-menu">
-                <li><a href="index.php">Accueil</a></li>
-                <li><a href="destinations.php" class="active">Destinations</a></li>
-                <li><a href="recommendations.php">Recommenadations Personnalisées</a></li>
-            </ul>
-            <div class="auth-buttons">
-                <?php if (isset($_SESSION['user_id'])): ?>
-                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
-                        <a href="pages/admin-panel.php" class="btn-outline">Panel Admin</a>
-                        <a href="logout.php" class="btn-primary">Déconnexion</a>
-                    <?php else: ?>
-                        <a href="profile.php" class="btn-outline">Mon Profil</a>
-                        <a href="logout.php" class="btn-primary">Déconnexion</a>
-                    <?php endif; ?>
-                <?php else: ?>
-                    <a href="login.php" class="btn-outline">Connexion</a>
-                    <a href="register.php" class="btn-primary">Inscription</a>
-                <?php endif; ?>
-            </div>
+    <!-- HERO FULL WIDTH WITH INTEGRATED HEADER AND DYNAMIC SLIDER -->
+    <section class="hero" style="height: 75vh; min-height: 900px; /* Reduced height to move hero down */ position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+
+        <!-- Hero Slider -->
+        <div class="hero-slider">
+            <!-- Slides will be generated by JavaScript/PHP -->
         </div>
-    </header>
+        
+        <div class="hero-overlay"></div>
 
-    <main style="margin-top: 100px;">
-        <!-- Hero Section -->
-        <section class="hero" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1548013146-72479768bada?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80') no-repeat center center/cover;">
-            <div class="hero-content">
-                <h1>Découvrez le Maroc</h1>
-                <p>Explorez nos destinations les plus populaires</p>
-            </div>
-        </section>
+        <!-- Navigation Arrows -->
+        <div class="hero-arrow left-arrow"><i class="fas fa-chevron-left"></i></div>
+        <div class="hero-arrow right-arrow"><i class="fas fa-chevron-right"></i></div>
 
+         <!-- Header -->
+         <?php include 'includes/header.php'; ?>
+
+    </section>
+
+    <main style="margin-top: -10px; /* Reduced space above main content */">
         <!-- Destinations Section -->
         <section class="section">
             <div class="container">
                 <div class="section-title">
-                    <h2>Toutes nos destinations</h2>
-                    <p>Explorez les merveilles du Maroc, ville par ville</p>
+                    <h2 style="font-family: 'Montserrat', sans-serif; font-weight: 800;">Toutes nos destinations</h2>
+                    <p style="font-family: 'Montserrat', sans-serif;">Explorez les merveilles du Maroc, ville par ville</p>
                 </div>
 
                 <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="Rechercher une ville...">
+                    <input type="text" id="searchInput" placeholder="Rechercher une ville..." style="font-family: 'Montserrat', sans-serif;">
                     <i class="fas fa-search"></i>
                 </div>
 
@@ -126,7 +306,8 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         ?>
                         <div class="destination-card" data-city="<?= strtolower($ville['nom']) ?>">
                             <div class="destination-image">
-                                <img src="<?= htmlspecialchars($ville['photo']) ?>" alt="<?= htmlspecialchars($ville['nom']) ?>">
+                                <img src="<?= htmlspecialchars(getCityImageUrl($ville['nom'], $ville['photo'])) ?>"
+                                    alt="<?= htmlspecialchars($ville['nom']) ?>">
                             </div>
                             <div class="destination-content">
                                 <h3><?= htmlspecialchars($ville['nom']) ?></h3>
@@ -145,11 +326,23 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     </span>
                                 </div>
                                 <p><?= htmlspecialchars($ville['description']) ?></p>
-                                <a href="city.php?id=<?= $ville['id'] ?>" class="btn-primary">Découvrir</a>
+                                <a href="city.php?id=<?= $ville['id'] ?>" class="btn-primary" style="font-family: 'Montserrat', sans-serif; font-weight: 600;">Découvrir</a>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
+
+                 <!-- Pagination -->
+                 <?php if ($totalPages > 1): ?>
+                 <div class="pagination" style="margin-top: 40px;">
+                     <a class="pagination-btn" href="?page=<?= max(1, $page-1) ?>" <?= $page <= 1 ? 'disabled' : '' ?>>Précédent</a>
+                     <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                         <a class="pagination-btn<?= $i === $page ? ' active' : '' ?>" href="?page=<?= $i ?>"> <?= $i ?> </a>
+                     <?php endfor; ?>
+                     <a class="pagination-btn" href="?page=<?= min($totalPages, $page+1) ?>" <?= $page >= $totalPages ? 'disabled' : '' ?>>Suivant</a>
+                 </div>
+                 <?php endif; ?>
+
             </div>
         </section>
     </main>
@@ -160,30 +353,28 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="footer-grid">
                 <div class="footer-col">
                     <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img" style="height:90px;">
-                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
-                    </div>
+                    <p style="font-family: 'Montserrat', sans-serif;">Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
                 </div>
                 <div class="footer-col">
-                    <h3>Liens Rapides</h3>
-                    <ul>
-                        <li><a href="index.php">Accueil</a></li>
-                        <li><a href="destinations.php">Destinations</a></li>
-                        <li><a href="recommendations.php">Recommandations Personnalisées</a></li>
+                    <h3 style="font-family: 'Montserrat', sans-serif; font-weight: 700;">Liens Rapides</h3>
+                    <ul style="font-family: 'Montserrat', sans-serif;">
+                        <li><a href="index.php" style="font-family: 'Montserrat', sans-serif;">Accueil</a></li>
+                        <li><a href="destinations.php" style="font-family: 'Montserrat', sans-serif;">Destinations</a></li>
+                        <li><a href="recommendations.php" style="font-family: 'Montserrat', sans-serif;">Recommandations</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
-                    <h3>Contact</h3>
-                    <p>contact@marocauthentique.com</p>
-                    <p>+212 522 123 456</p>
+                    <h3 style="font-family: 'Montserrat', sans-serif; font-weight: 700;">Contact</h3>
+                    <p style="font-family: 'Montserrat', sans-serif;">contact@marocauthentique.com</p>
+                    <p style="font-family: 'Montserrat', sans-serif;">+212 522 123 456</p>
                 </div>
             </div>
             <div class="copyright">
-                <p>© 2025 Maroc Authentique. Tous droits réservés.</p>
+                <p style="font-family: 'Montserrat', sans-serif;">© 2025 Maroc Authentique. Tous droits réservés.</p>
+                <p style="font-family: 'Montserrat', sans-serif; margin-top: 10px;">
+                    <a href="politique-confidentialite.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Politique de confidentialité</a> | 
+                    <a href="conditions-utilisation.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Conditions d'utilisation</a>
+                </p>
             </div>
         </div>
     </footer>
@@ -203,6 +394,121 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 }
             });
         });
+    </script>
+    <script>
+        // Code for the hero background image slider with arrows
+        // Define your hero images here
+        const heroImages = [
+            'images/destinations.png',
+            'images/destination1.png',
+            'images/destination2.png',
+            'images/destination3.png',
+            'images/destination4.png',
+            'images/destination5.png'
+        ];
+
+        const heroSlider = document.querySelector('.hero-slider');
+        const leftArrow = document.querySelector('.hero-arrow.left-arrow');
+        const rightArrow = document.querySelector('.hero-arrow.right-arrow');
+        let currentHeroSlideIndex = 0;
+        let autoSlideInterval;
+
+        // Function to create and add slides to the DOM
+        function createHeroSlides() {
+            if (!heroSlider || heroImages.length === 0) return;
+            heroImages.forEach((imgSrc, index) => {
+                const slide = document.createElement('div');
+                slide.classList.add('hero-slide');
+                slide.style.backgroundImage = `url('${imgSrc}')`;
+                if (index === 0) {
+                    slide.classList.add('active'); // Set the first slide as active
+                }
+                heroSlider.appendChild(slide);
+            });
+        }
+
+        // Function to show a specific hero slide
+        function showHeroSlide(indexToShow) {
+            const slides = heroSlider.querySelectorAll('.hero-slide');
+            if (slides.length === 0) return;
+
+            // Optional: Add fade-out class to current slide before changing opacity (for smoother transition if needed)
+            // const currentActiveSlide = heroSlider.querySelector('.hero-slide.active');
+            // if (currentActiveSlide) currentActiveSlide.classList.add('fade-out');
+
+            slides.forEach((slide, i) => {
+                slide.classList.remove('active');
+                // slide.classList.remove('fade-out'); // Remove fade-out class
+                if (i === indexToShow) {
+                    slide.classList.add('active');
+                }
+            });
+             currentHeroSlideIndex = indexToShow;
+        }
+
+        // Function to go to the next hero slide
+        function nextHeroSlide() {
+            const slides = heroSlider.querySelectorAll('.hero-slide');
+            if (slides.length === 0) return;
+            const nextIndex = (currentHeroSlideIndex + 1) % slides.length;
+            showHeroSlide(nextIndex);
+        }
+
+        // Function to go to the previous hero slide
+        function prevHeroSlide() {
+            const slides = heroSlider.querySelectorAll('.hero-slide');
+            if (slides.length === 0) return;
+            const prevIndex = (currentHeroSlideIndex - 1 + slides.length) % slides.length;
+            showHeroSlide(prevIndex);
+        }
+
+        // Start auto slide rotation
+        function startAutoSlide() {
+             stopAutoSlide(); // Clear any existing interval
+             autoSlideInterval = setInterval(nextHeroSlide, 7000); // Change slide every 7 seconds
+        }
+
+        // Stop auto slide rotation
+        function stopAutoSlide() {
+            clearInterval(autoSlideInterval);
+            autoSlideInterval = null;
+        }
+
+        // Initialize the hero slider
+        createHeroSlides(); // Create the slides first
+        if (heroImages.length > 1) { // Only start auto slide if there's more than one image
+            startAutoSlide(); // Start auto rotation
+        } else { // If only one image, hide arrows
+            if(leftArrow) leftArrow.style.display = 'none';
+            if(rightArrow) rightArrow.style.display = 'none';
+        }
+
+        // Add event listeners for arrows (only if there's more than one image)
+        if (heroImages.length > 1) {
+            if (leftArrow) {
+                leftArrow.addEventListener('click', () => {
+                    stopAutoSlide();
+                    prevHeroSlide();
+                    // Optional: restart auto slide after a delay if user stops interacting
+                    // clearTimeout(autoSlideTimer);
+                    // autoSlideTimer = setTimeout(startAutoSlide, 15000);
+                });
+            }
+
+            if (rightArrow) {
+                rightArrow.addEventListener('click', () => {
+                    stopAutoSlide();
+                    nextHeroSlide();
+                     // Optional: restart auto slide after a delay if user stops interacting
+                    // clearTimeout(autoSlideTimer);
+                    // autoSlideTimer = setTimeout(startAutoSlide, 15000);
+                });
+            }
+        }
+
+         // Optional: Stop auto rotation when user leaves the page
+         window.addEventListener('beforeunload', stopAutoSlide);
+
     </script>
 </body>
 </html> 
