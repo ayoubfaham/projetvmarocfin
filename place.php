@@ -1,21 +1,35 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// Désactiver l'affichage des erreurs en production
+ini_set('display_errors', 0);
+error_reporting(0);
 
 session_start();
 require_once 'config/database.php';
 
+// Récupérer tous les lieux
+$stmt = $pdo->query("SELECT * FROM lieux ORDER BY nom");
+$lieux = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // Récupération de l'ID du lieu depuis l'URL
 $placeId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
+// Vérifier si la colonne url_activités existe
+$columnExists = false;
+try {
+    $checkColumn = $pdo->query("SHOW COLUMNS FROM lieux LIKE 'url_activités'");
+    $columnExists = $checkColumn->rowCount() > 0;
+} catch (PDOException $e) {
+    // Erreur silencieuse en production
+}
+
+// Construire la requête en fonction de l'existence de la colonne
+$query = "SELECT l.*, v.nom as ville_nom, v.id as ville_id" . ($columnExists ? ", l.url_activités" : "") . " 
+          FROM lieux l 
+          JOIN villes v ON l.id_ville = v.id 
+          WHERE l.id = ?";
+
 // Récupération des informations du lieu (avec nouveaux champs)
-$place = $pdo->prepare("
-    SELECT l.*, v.nom as ville_nom, v.id as ville_id
-    FROM lieux l 
-    JOIN villes v ON l.id_ville = v.id 
-    WHERE l.id = ?
-");
+$place = $pdo->prepare($query);
 $place->execute([$placeId]);
 $place = $place->fetch(PDO::FETCH_ASSOC);
 
@@ -85,107 +99,73 @@ if (isset($_POST['add_review']) && isset($_SESSION['user_id'])) {
     }
 }
 
-// Message de succès après redirection
-if (isset($_GET['success']) && $_GET['success'] == 1) {
-    $success_message = "Votre avis a bien été enregistré !";
-}
-
-// Préparer les images pour le slider
+// Initialiser le tableau des images du slider
 $sliderImages = [];
 
-// Débogage des images hero
-error_log("[DEBUG PLACE.PHP] ID du lieu: " . $placeId);
-error_log("[DEBUG PLACE.PHP] Valeur de hero_images: " . ($place['hero_images'] ?? 'non définie'));
-
-// Utiliser les images hero si disponibles
+// Si des images hero sont définies, les traiter
 if (!empty($place['hero_images'])) {
-    // Nettoyer et filtrer les chemins d'images
-    $heroImages = array_filter(array_map('trim', explode(',', $place['hero_images'])));
-    error_log("[DEBUG PLACE.PHP] Images hero après explode: " . print_r($heroImages, true));
-    
-    // Tableau pour stocker les chemins d'images valides
-    $validHeroImages = [];
-    
-    // Ajouter le chemin complet pour chaque image hero et vérifier qu'elle existe
-    foreach ($heroImages as $img) {
-        $originalPath = $img;
-        $finalPath = $img;
-        
-        // Vérifier si l'image commence déjà par http:// ou https:// (URL complète)
-        if (!preg_match('/^(http|https):\/\//i', $finalPath)) {
-            // Vérifier si l'image commence déjà par un slash
-            if (substr($finalPath, 0, 1) !== '/') {
-                $finalPath = '/' . $finalPath;
-            }
+    $heroImages = explode(',', $place['hero_images']);
+
+    // Chemin de base pour les images
+    $baseImagePath = 'images/';
+    $baseImagePath2 = '../images/';
+
+    // Fonction pour vérifier si un fichier existe en tenant compte de la casse
+    function fileExistsCaseInsensitive($file) {
+        if (file_exists($file)) {
+            return true;
         }
-        
-        // Vérifier si le fichier existe physiquement
-        // Essayer d'abord avec le chemin complet depuis la racine du site
-        $physicalPath = $_SERVER['DOCUMENT_ROOT'] . $finalPath;
-        $fileExists = file_exists($physicalPath);
-        
-        // Si le fichier n'existe pas, essayer avec le chemin relatif depuis le répertoire du projet
-        if (!$fileExists) {
-            $projectPath = dirname(__FILE__);
-            $physicalPathProject = $projectPath . '/' . ltrim($finalPath, '/');
-            $fileExists = file_exists($physicalPathProject);
-            
-            if ($fileExists) {
-                // Si on trouve le fichier avec ce chemin, mettre à jour le chemin physique
-                $physicalPath = $physicalPathProject;
-            }
+        $dir = dirname($file);
+        $filename = basename($file);
+        if (!is_dir($dir)) {
+            return false;
         }
-        
-        error_log("[DEBUG PLACE.PHP] Vérification de l'image: " . $finalPath);
-        error_log("[DEBUG PLACE.PHP] Chemin physique: " . $physicalPath);
-        error_log("[DEBUG PLACE.PHP] Fichier existe: " . ($fileExists ? 'Oui' : 'Non'));
-        
-        // Ajouter l'image au tableau uniquement si elle existe ou si c'est une URL externe
-        if ($fileExists || preg_match('/^(http|https):\/\//i', $finalPath)) {
-            $validHeroImages[] = $finalPath;
-            error_log("[DEBUG PLACE.PHP] Image valide ajoutée: " . $finalPath);
+        $files = scandir($dir);
+        return in_array($filename, $files, true);
+    }
+
+    // Parcourir chaque image et vérifier son existence
+    foreach ($heroImages as $image) {
+        $image = trim($image);
+        if (empty($image)) continue;
+
+        // Essayer plusieurs chemins possibles
+        $finalPath = '';
+
+        // Essayer avec le chemin direct
+        $testPath = $image;
+        $physicalPath = $_SERVER['DOCUMENT_ROOT'] . '/project 10/' . $testPath;
+        $fileExists = fileExistsCaseInsensitive($physicalPath);
+
+        if ($fileExists) {
+            $finalPath = $testPath;
         } else {
-            error_log("[DEBUG PLACE.PHP] Image ignorée car introuvable: " . $finalPath);
-            
-            // Essayer avec plusieurs chemins alternatifs
+            // Essayer avec des chemins alternatifs
             $altPaths = [
-                // Chemin sans le premier slash
-                substr($finalPath, 1),
-                // Chemin relatif au répertoire du projet
-                'project 10/' . ltrim($finalPath, '/'),
-                // Chemin direct depuis le répertoire du projet
-                ltrim($finalPath, '/')
+                $baseImagePath . $image,
+                $baseImagePath2 . $image,
+                'images/places/' . $image,
+                '../images/places/' . $image,
+                'images/lieux/' . $image,
+                '../images/lieux/' . $image,
+                'images/' . $image,
+                '../images/' . $image,
             ];
-            
+
             foreach ($altPaths as $altPath) {
-                // Essayer avec le chemin depuis la racine du document
-                $altPhysicalPath1 = $_SERVER['DOCUMENT_ROOT'] . '/' . $altPath;
-                // Essayer avec le chemin depuis le répertoire du projet
-                $altPhysicalPath2 = dirname(__FILE__) . '/' . $altPath;
-                
-                error_log("[DEBUG PLACE.PHP] Essai avec chemin alternatif: " . $altPath);
-                error_log("[DEBUG PLACE.PHP] Chemin physique alternatif 1: " . $altPhysicalPath1);
-                error_log("[DEBUG PLACE.PHP] Chemin physique alternatif 2: " . $altPhysicalPath2);
-                
-                if (file_exists($altPhysicalPath1)) {
-                    $validHeroImages[] = '/' . $altPath;
-                    error_log("[DEBUG PLACE.PHP] Image trouvée avec chemin alternatif 1: " . $altPath);
-                    break;
-                } else if (file_exists($altPhysicalPath2)) {
-                    $validHeroImages[] = '/' . $altPath;
-                    error_log("[DEBUG PLACE.PHP] Image trouvée avec chemin alternatif 2: " . $altPath);
+                $altPhysicalPath1 = $_SERVER['DOCUMENT_ROOT'] . '/project 10/' . $altPath;
+                $altPhysicalPath2 = $_SERVER['DOCUMENT_ROOT'] . '/' . $altPath;
+
+                if (fileExistsCaseInsensitive($altPhysicalPath1) || fileExistsCaseInsensitive($altPhysicalPath2)) {
+                    $finalPath = $altPath;
                     break;
                 }
             }
         }
-    }
-    
-    // Utiliser uniquement les images valides
-    if (!empty($validHeroImages)) {
-        $sliderImages = array_merge($sliderImages, $validHeroImages);
-        error_log("[DEBUG PLACE.PHP] SliderImages après fusion: " . print_r($sliderImages, true));
-    } else {
-        error_log("[DEBUG PLACE.PHP] Aucune image hero valide trouvée");
+
+        if (!empty($finalPath)) {
+            $sliderImages[] = $finalPath;
+        }
     }
 } 
 // Fallback aux anciennes images si hero_images est vide
@@ -427,7 +407,7 @@ if (empty($sliderImages)) {
             background: var(--secondary-color);
             color: #fff;
             border-radius: 30px;
-            padding: 10px 28px;
+            padding: 10px 20px;
             font-weight: 500;
             text-decoration: none;
             transition: background 0.2s;
@@ -889,26 +869,169 @@ if (empty($sliderImages)) {
                   margin-top: 30px;
              }
         }
+        .hero-slider-simple {
+            position: relative;
+            width: 100%;
+            height: 420px;
+            overflow: hidden;
+            border-radius: 0 0 30px 30px;
+            background: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hero-slide-simple {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0;
+            transition: opacity 0.7s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hero-slide-simple.active {
+            opacity: 1;
+            z-index: 2;
+        }
+        .hero-slide-simple img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0 0 30px 30px;
+        }
+        .hero-arrow-simple {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(34,34,34,0.5);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 3;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hero-arrow-simple.prev { left: 18px; }
+        .hero-arrow-simple.next { right: 18px; }
+        .hero-arrow-simple:hover { background: #bfa14a; color: #fff; }
+        .hero-dots-simple {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 4;
+        }
+        .hero-dot-simple {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #fff;
+            opacity: 0.6;
+            cursor: pointer;
+            border: 2px solid #bfa14a;
+            transition: background 0.2s, opacity 0.2s;
+        }
+        .hero-dot-simple.active {
+            background: #bfa14a;
+            opacity: 1;
+        }
+        @media (max-width: 900px) {
+            .hero-slider-simple, .hero-slide-simple img { height: 260px; }
+        }
+        @media (max-width: 600px) {
+            .hero-slider-simple, .hero-slide-simple img { height: 180px; }
+        }
     </style>
 </head>
 <body>
     <!-- Header -->
-    <?php include 'includes/header.php'; ?>
+    <header class="hero-header">
+        <div class="header-container">
+            <a href="index.php" class="logo">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+            </a>
+            
+            <ul class="nav-menu">
+                <li><a href="index.php">Accueil</a></li>
+                <li><a href="destinations.php">Destinations</a></li>
+                <li><a href="recommendations.php">Recommandations</a></li>
+            </ul>
+            
+            <div class="nav-buttons">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                        <a href="pages/admin-panel.php" class="nav-btn btn-outline">Panneau Admin</a>
+                    <?php else: ?>
+                        <a href="profile.php" class="nav-btn btn-outline">Mon Profil</a>
+                    <?php endif; ?>
+                    <a href="logout.php" class="nav-btn btn-solid">Déconnexion</a>
+                <?php else: ?>
+                    <a href="login.php" class="nav-btn btn-outline">Connexion</a>
+                    <a href="register.php" class="nav-btn btn-solid"><i class="fas fa-user-plus" style="margin-right: 6px;"></i>Inscription</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </header>
     
     <!-- HERO FULL WIDTH WITH DYNAMIC BACKGROUND SLIDER AND CONTENT -->
     <?php if ($place): ?>
-    <section class="place-hero-pro">
-        <div class="hero-background"></div>
+    <section class="hero" style="min-height:60vh;position:relative;overflow:hidden;">
+        <div class="hero-background" id="heroBackground"></div>
+        <button class="hero-arrow left-arrow" id="prevHero" aria-label="Image précédente" style="position:absolute;left:24px;top:50%;transform:translateY(-50%);z-index:10;background:rgba(0,0,0,0.3);border:none;border-radius:50%;color:#fff;font-size:2.2rem;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i class="fas fa-chevron-left"></i></button>
+        <button class="hero-arrow right-arrow" id="nextHero" aria-label="Image suivante" style="position:absolute;right:24px;top:50%;transform:translateY(-50%);z-index:10;background:rgba(0,0,0,0.3);border:none;border-radius:50%;color:#fff;font-size:2.2rem;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
         <div class="hero-overlay"></div>
-        <button class="hero-arrow prev" onclick="prevSlide()"><i class="fas fa-chevron-left"></i></button>
-        <button class="hero-arrow next" onclick="nextSlide()"><i class="fas fa-chevron-right"></i></button>
-        <div class="hero-content">
+        <div class="hero-content premium">
             <h1><?= htmlspecialchars($place['nom'] ?? 'Lieu') ?></h1>
-            <p><?= htmlspecialchars($place['description'] ?? '') ?></p>
+            <div class="hero-sub"><?= htmlspecialchars($place['description'] ?? '') ?></div>
         </div>
     </section>
+    <script>
+    const heroImages = <?= json_encode($sliderImages) ?>;
+    let currentHeroIdx = 0;
+    const heroBg = document.getElementById('heroBackground');
+    const prevBtn = document.getElementById('prevHero');
+    const nextBtn = document.getElementById('nextHero');
+    let heroInterval;
+    function showHeroImg(idx) {
+        if (!heroBg) return;
+        currentHeroIdx = idx;
+        heroBg.style.backgroundImage = `url('${heroImages[currentHeroIdx]}')`;
+        heroBg.style.backgroundSize = 'cover';
+        heroBg.style.backgroundPosition = 'center';
+        heroBg.style.backgroundRepeat = 'no-repeat';
+    }
+    function nextHeroImg() {
+        showHeroImg((currentHeroIdx + 1) % heroImages.length);
+    }
+    function prevHeroImg() {
+        showHeroImg((currentHeroIdx - 1 + heroImages.length) % heroImages.length);
+    }
+    function startHeroAuto() {
+        stopHeroAuto();
+        heroInterval = setInterval(nextHeroImg, 6000);
+    }
+    function stopHeroAuto() {
+        clearInterval(heroInterval);
+    }
+    if (heroBg && heroImages.length > 0) {
+        showHeroImg(0);
+        startHeroAuto();
+        prevBtn.addEventListener('click', () => { prevHeroImg(); startHeroAuto(); });
+        nextBtn.addEventListener('click', () => { nextHeroImg(); startHeroAuto(); });
+        heroBg.addEventListener('mouseenter', stopHeroAuto);
+        heroBg.addEventListener('mouseleave', startHeroAuto);
+    }
+    </script>
     <?php endif; ?>
 
+    
     <main style="margin-top: 0px; background: #f8f6f3; min-height: 100vh;">
         <div class="container" style="max-width: 1200px;">
             
@@ -917,13 +1040,95 @@ if (empty($sliderImages)) {
 
                 <!-- Left Column: Introduction -->
                 <div class="left-column">
-                    <!-- Added place introduction section -->
-                    <?php if (!empty($place['description'])): ?>
-                    <div class="section-block" style="padding: 30px; margin-bottom: 30px; margin-top: 30px;">
-                        <h3 style="font-size: 1.4rem; margin-bottom: 18px; color: #2D2926; font-family: 'Playfair Display', serif;">À propos de <?= htmlspecialchars($place['nom'] ?? 'ce lieu') ?></h3>
-                        <p style="font-size: 1.05rem; line-height: 1.6; color: #444;"><?= nl2br(htmlspecialchars($place['description'])) ?></p>
+
+                    <!-- Added place introduction section with official website -->
+                    <div style="display: flex; flex-direction: column; gap: 30px; margin-top: 30px;">
+                        <!-- Section Réservation -->
+                        <div class="section-block" style="background-color: #fff; border: 1px solid #e0d5b8; border-radius: 8px; padding: 30px; margin-bottom: 0;">
+                            <h3 style="font-size: 1.4rem; margin-bottom: 18px; color: #2D2926; font-family: 'Playfair Display', serif;">Activités</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
+                                <!-- Bouton de réservation d'hôtel -->
+                                <a href="https://www.barcelo.com/fr-ma/barcelo-anfa-casablanca/" 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   style="background-color: #f9f5ed;
+                                          color: #b48a3c !important; 
+                                          padding: 12px 15px; 
+                                          border-radius: 6px; 
+                                          font-weight: 600; 
+                                          text-decoration: none; 
+                                          display: flex; 
+                                          align-items: center; 
+                                          gap: 10px;
+                                          transition: all 0.3s ease;
+                                          border: 1px solid #e0d5b8;
+                                          font-size: 0.95rem;
+                                          text-align: left;">
+                                    <i class="fas fa-hotel" style="color: #b48a3c; font-size: 1.1rem;"></i>
+                                    <div>
+                                        <div style="font-weight: 700;">Activités</div>
+                                        <div style="font-size: 0.85rem; color: #666;">Réservez ici</div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                        <?php if (!empty($place['description'])): ?>
+                        <div class="section-block" style="padding: 30px; margin-bottom: 0;">
+                            <h3 style="font-size: 1.4rem; margin-bottom: 18px; color: #2D2926; font-family: 'Playfair Display', serif;">À propos de <?= htmlspecialchars($place['nom'] ?? 'ce lieu') ?></h3>
+                            <p style="font-size: 1.05rem; line-height: 1.6; color: #444;"><?= nl2br(htmlspecialchars($place['description'])) ?></p>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <?php
+                        // Récupérer l'URL du site web du lieu (vérifier plusieurs noms de colonnes possibles)
+                        $site_web = '';
+                        $possible_columns = ['site_web', 'website', 'url', 'lien_web', 'lien_site'];
+                        foreach ($possible_columns as $col) {
+                            if (!empty($place[$col])) {
+                                $site_web = trim($place[$col]);
+                                break;
+                            }
+                        }
+                        
+                        // Ajouter https:// si nécessaire
+                        if (!empty($site_web) && !preg_match('~^https?://~i', $site_web)) {
+                            $site_web = 'https://' . $site_web;
+                        }
+                        
+                        if (!empty($site_web)): 
+                        ?>
+                        <div class="section-block" style="background-color: #fff; border: 1px solid #e0d5b8; border-radius: 8px; padding: 20px; text-align: left; margin-bottom: 0;">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="background-color: #f9f5ed; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <i class="fas fa-globe" style="color: #b48a3c; font-size: 1.2rem;"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #2D2926; margin-bottom: 3px;">Site Officiel</div>
+                                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 8px; word-break: break-all;">
+                                        <?= htmlspecialchars(parse_url($site_web, PHP_URL_HOST) ?: $site_web) ?>
+                                    </div>
+                                    <a href="<?= htmlspecialchars($site_web) ?>" 
+                                       target="_blank" 
+                                       rel="noopener noreferrer" 
+                                       style="color: #b48a3c !important; 
+                                              padding: 8px 20px; 
+                                              border-radius: 4px; 
+                                              font-weight: 600; 
+                                              text-decoration: none; 
+                                              display: inline-flex; 
+                                              align-items: center; 
+                                              gap: 8px;
+                                              border: 1px solid #b48a3c;
+                                              transition: all 0.3s ease;
+                                              font-size: 0.95rem;">
+                                        <i class="fas fa-external-link-alt"></i>
+                                        <span>Visiter le site</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                     </div>
-                    <?php endif; ?>
 
                     <!-- Avis Section (moved here) -->
                      <div class="section-block" style="padding: 30px; margin-bottom: 30px;">
@@ -1070,6 +1275,98 @@ if (empty($sliderImages)) {
                     </div>
                     <?php endif; ?>
 
+                    <!-- Site web de l'établissement -->
+                    <?php 
+                    // Vérifier si une URL de site web est disponible
+                    $website_url = $place['site_web'] ?? $place['website'] ?? $place['url'] ?? '';
+                    $website_url = trim($website_url);
+                    
+                    if (!empty($website_url)): 
+                        // S'assurer que l'URL commence par http:// ou https://
+                        if (!preg_match('~^https?://~i', $website_url)) {
+                            $website_url = 'https://' . $website_url;
+                        }
+                        
+                        // Déterminer l'icône en fonction du type de lieu
+                        $type_lieu = strtolower($place['type'] ?? '');
+                        $icone = 'fa-globe'; // Icône par défaut
+                        $couleur = '#3498db'; // Couleur bleue par défaut
+                        
+                        if (strpos($type_lieu, 'hôtel') !== false || strpos($type_lieu, 'hotel') !== false) {
+                            $icone = 'fa-hotel';
+                            $couleur = '#e74c3c'; // Rouge
+                        } elseif (strpos($type_lieu, 'restaurant') !== false || strpos($type_lieu, 'café') !== false) {
+                            $icone = 'fa-utensils';
+                            $couleur = '#e67e22'; // Orange
+                        } elseif (strpos($type_lieu, 'cinéma') !== false || strpos($type_lieu, 'cinema') !== false) {
+                            $icone = 'fa-film';
+                            $couleur = '#9b59b6'; // Violet
+                        } elseif (strpos($type_lieu, 'théâtre') !== false || strpos($type_lieu, 'theatre') !== false) {
+                            $icone = 'fa-theater-masks';
+                            $couleur = '#2ecc71'; // Vert
+                        } elseif (strpos($type_lieu, 'musée') !== false || strpos($type_lieu, 'musee') !== false) {
+                            $icone = 'fa-landmark';
+                            $couleur = '#f1c40f'; // Jaune
+                        }
+                    ?>
+                    <div class="section-block" style="padding: 20px; margin-bottom: 20px; background-color: #f8f9fa; border-radius: 8px; text-align: center;">
+                        <h3 style="font-size: 1.2rem; margin-bottom: 15px; color: #2c3e50; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fas <?= $icone ?>" style="color: <?= $couleur ?>;"></i>
+                            Site web de l'établissement
+                        </h3>
+                        <a href="<?= htmlspecialchars($website_url) ?>" 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           class="btn-outline" 
+                           style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; font-size: 1rem; border-radius: 25px; background-color: #f5f5f5; border: 1px solid #ddd; color: #333; text-decoration: none; transition: all 0.3s ease;"
+                           onmouseover="this.style.backgroundColor='#e9e9e9'; this.style.borderColor='#b48a3c';"
+                           onmouseout="this.style.backgroundColor='#f5f5f5'; this.style.borderColor='#ddd';">
+                            <i class="fas fa-external-link-alt"></i>
+                            Visiter le site web
+                        </a>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php 
+                    // Récupération de l'URL d'activité
+                    $url_activite = '';
+                    
+                    // Vérifier les différentes variations possibles du nom de la colonne
+                    $possible_columns = ['url_activités', 'url_activites', 'site_web', 'website', 'lien_activite'];
+                    
+                    foreach ($possible_columns as $col) {
+                        if (!empty($place[$col])) {
+                            $url_activite = trim($place[$col]);
+                            break;
+                        }
+                    }
+                    
+                    // Ajouter https:// si ce n'est pas déjà le cas
+                    if (!empty($url_activite) && !preg_match('~^https?://~i', $url_activite)) {
+                        $url_activite = 'https://' . $url_activite;
+                    }
+                    ?>
+
+                    <?php if (!empty($url_activite)): ?>
+                    <div class="section-block" style="padding: 30px; margin-bottom: 30px;">
+                        <h3 style="font-size: 1.3rem; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; color: var(--primary-color);">
+                            <i class="fas fa-ticket-alt" style="color: #b48a3c;"></i>Réserver en ligne
+                        </h3>
+                        <div style="text-align: center;">
+                            <a href="<?= htmlspecialchars($url_activite) ?>" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               class="btn-outline" 
+                               style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 1rem; border-radius: 25px; background-color: #f5f5f5; border: 1px solid #ddd; color: #333; text-decoration: none; transition: all 0.3s ease;"
+                               onmouseover="this.style.backgroundColor='#e9e9e9'; this.style.borderColor='#b48a3c';"
+                               onmouseout="this.style.backgroundColor='#f5f5f5'; this.style.borderColor='#ddd';">
+                                <i class="fas fa-external-link-alt"></i>
+                                Réserver maintenant
+                            </a>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <!-- Equipements & Services -->
                     <div class="section-block" style="padding: 30px; margin-bottom: 30px;">
                         <h3 style="font-size: 1.3rem; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; color: var(--primary-color);"><i class="fas fa-concierge-bell" style="color: #bfa14a;"></i> Équipements & Services</h3>
@@ -1205,148 +1502,53 @@ if (empty($sliderImages)) {
         </div>
     </footer>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Rotation des images du hero
-        const sliderImages = <?php echo json_encode($sliderImages ?? []); ?>; // Use dynamic images from PHP
-        let currentImageIndex = 0;
-        let autoSlideInterval;
-        const heroBackground = document.querySelector('.hero-background');
-
-        // Précharger toutes les images pour éviter les problèmes d'affichage
-        function preloadImages() {
-            if (!sliderImages || sliderImages.length === 0) return;
-            
-            console.log('Préchargement de ' + sliderImages.length + ' images');
-            sliderImages.forEach((src, index) => {
-                // S'assurer que le chemin de l'image est correct
-                let imagePath = src;
-                if (!imagePath.match(/^(http|https):\/\//i) && !imagePath.startsWith('/')) {
-                    imagePath = '/' + imagePath;
-                }
-                
-                const img = new Image();
-                img.src = imagePath;
-                console.log('Préchargement de l\'image ' + index + ': ' + imagePath);
-            });
-        }
-        
-        // Fonction pour changer l'image sur l'élément background
-        function changeHeroImage(index) {
-            if (!heroBackground) {
-                console.log('Impossible de changer l\'image: pas de background');
-                return;
-            }
-            
-            // Si aucune image n'est disponible, utiliser une image par défaut
-            if (sliderImages.length === 0) {
-                console.log('Aucune image disponible, utilisation de l\'image par défaut');
-                heroBackground.style.backgroundImage = "url('/images/default_place_hero.jpg')";
-                return;
-            }
-            
-            currentImageIndex = index;
-            
-            // S'assurer que le chemin de l'image est correct
-            let imagePath = sliderImages[currentImageIndex];
-            
-            // Vérifier si le chemin commence par http:// ou https://
-            if (!imagePath.match(/^(http|https):\/\//i) && !imagePath.startsWith('/')) {
-                imagePath = '/' + imagePath;
-            }
-            
-            console.log('Tentative d\'affichage de l\'image hero ' + currentImageIndex + '/' + sliderImages.length + ':', imagePath);
-            
-            // Créer une nouvelle image pour vérifier qu'elle se charge correctement
-            const img = new Image();
-            img.onload = function() {
-                heroBackground.style.backgroundImage = `url('${imagePath}')`;
-                console.log('Image chargée avec succès:', imagePath);
-            };
-            img.onerror = function() {
-                console.error('Erreur de chargement de l\'image:', imagePath);
-                
-                // Essayer avec un chemin alternatif (sans le premier slash)
-                if (imagePath.startsWith('/')) {
-                    const altPath = imagePath.substring(1);
-                    console.log('Tentative avec chemin alternatif:', altPath);
-                    
-                    const altImg = new Image();
-                    altImg.onload = function() {
-                        heroBackground.style.backgroundImage = `url('${altPath}')`;
-                        console.log('Image chargée avec succès (chemin alternatif):', altPath);
-                    };
-                    altImg.onerror = function() {
-                        console.error('Erreur de chargement de l\'image (chemin alternatif):', altPath);
-                        // Essayer de passer à l'image suivante si celle-ci ne se charge pas
-                        if (sliderImages.length > 1) {
-                            nextSlide();
-                        } else {
-                            // Si c'est la seule image et qu'elle ne se charge pas, utiliser l'image par défaut
-                            heroBackground.style.backgroundImage = "url('/images/default_place_hero.jpg')";
-                        }
-                    };
-                    altImg.src = altPath;
-                } else {
-                    // Si l'image ne commence pas par un slash, essayer de passer à l'image suivante
-                    if (sliderImages.length > 1) {
-                        nextSlide();
-                    } else {
-                        // Si c'est la seule image et qu'elle ne se charge pas, utiliser l'image par défaut
-                        heroBackground.style.backgroundImage = "url('/images/default_place_hero.jpg')";
-                    }
-                }
-            };
-            img.src = imagePath;
-        }
-
-        // Fonction pour passer à l'image suivante
-        function nextSlide() {
-            const nextIndex = (currentImageIndex + 1) % sliderImages.length;
-            changeHeroImage(nextIndex);
-        }
-
-        // Fonction pour passer à l'image précédente
-        function prevSlide() {
-            const prevIndex = (currentImageIndex - 1 + sliderImages.length) % sliderImages.length;
-            changeHeroImage(prevIndex);
-        }
-
-        // Démarre la rotation automatique
-        function startAutoSlide() {
-            stopAutoSlide();
-            autoSlideInterval = setInterval(nextSlide, 7000);
-        }
-
-        // Arrête la rotation automatique
-        function stopAutoSlide() {
-            clearInterval(autoSlideInterval);
-            autoSlideInterval = null;
-        }
-
-        // Initialisation
-        if (heroBackground && sliderImages.length > 0) {
-            console.log('Initialisation du slider avec ' + sliderImages.length + ' images');
-            
-            // Précharger toutes les images avant de démarrer le slider
-            preloadImages();
-            
-            // Afficher la première image
-            changeHeroImage(0);
-            
-            // Démarrer la rotation automatique après un délai
-            setTimeout(() => {
-                startAutoSlide();
-            }, 3000);
-        } else {
-            console.warn('Pas d\'images disponibles pour le slider ou élément hero-background non trouvé');
-            console.log('sliderImages:', sliderImages);
-            console.log('heroBackground:', heroBackground);
-        }
-
-        // Arrêter la rotation quand l'utilisateur quitte la page
-        window.addEventListener('beforeunload', function() {
-            stopAutoSlide();
+    let simpleCurrent = 0;
+    const simpleSlides = document.querySelectorAll('.hero-slide-simple');
+    const simpleDots = document.querySelectorAll('.hero-dot-simple');
+    let simpleInterval;
+    function showSimpleSlide(idx) {
+        simpleSlides.forEach((slide, i) => {
+            slide.classList.toggle('active', i === idx);
+            if (simpleDots[i]) simpleDots[i].classList.toggle('active', i === idx);
         });
+        simpleCurrent = idx;
+    }
+    function nextSimpleSlide() {
+        showSimpleSlide((simpleCurrent + 1) % simpleSlides.length);
+    }
+    function prevSimpleSlide() {
+        showSimpleSlide((simpleCurrent - 1 + simpleSlides.length) % simpleSlides.length);
+    }
+    function goToSimpleSlide(idx) {
+        showSimpleSlide(idx);
+    }
+    function startSimpleAuto() {
+        stopSimpleAuto();
+        simpleInterval = setInterval(nextSimpleSlide, 5000);
+    }
+    function stopSimpleAuto() {
+        clearInterval(simpleInterval);
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        showSimpleSlide(0);
+        if (simpleSlides.length > 1) startSimpleAuto();
+        // Swipe mobile
+        let startX = null;
+        const slider = document.querySelector('.hero-slider-simple');
+        if (slider) {
+            slider.addEventListener('touchstart', e => { startX = e.touches[0].clientX; });
+            slider.addEventListener('touchend', e => {
+                if (startX === null) return;
+                let dx = e.changedTouches[0].clientX - startX;
+                if (Math.abs(dx) > 40) {
+                    if (dx < 0) nextSimpleSlide();
+                    else prevSimpleSlide();
+                }
+                startX = null;
+            });
+            slider.addEventListener('mouseenter', stopSimpleAuto);
+            slider.addEventListener('mouseleave', startSimpleAuto);
+        }
     });
     </script>
 </body>

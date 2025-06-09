@@ -23,7 +23,11 @@ if (session_status() == PHP_SESSION_NONE) {
         
         <div class="nav-buttons">
             <?php if (isset($_SESSION['user_id'])): ?>
-                <a href="profile.php" class="nav-btn btn-outline">Mon Profil</a>
+                <?php if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] == 1): ?>
+                    <a href="admin/index.php" class="nav-btn btn-outline">Panneau Admin</a>
+                <?php else: ?>
+                    <a href="profile.php" class="nav-btn btn-outline">Mon Profil</a>
+                <?php endif; ?>
                 <a href="logout.php" class="nav-btn btn-solid">Déconnexion</a>
             <?php else: ?>
                 <a href="login.php" class="nav-btn btn-outline">Connexion</a>

@@ -284,11 +284,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 margin-bottom: 20px;
             }
         }
+        
+        footer {
+            background: #2D2926;
+            color: #f5f5f5;
+            padding: 60px 0 30px 0;
+            font-family: 'Montserrat', sans-serif;
+            margin-top: 0px;
+        }
     </style>
 </head>
 <body>
     <!-- Header -->
-    <?php include 'includes/header.php'; ?>
+    <header class="hero-header">
+        <div class="header-container">
+            <a href="index.php" class="logo">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+            </a>
+            
+            <ul class="nav-menu">
+                <li><a href="index.php">Accueil</a></li>
+                <li><a href="destinations.php">Destinations</a></li>
+                <li><a href="recommendations.php">Recommandations</a></li>
+            </ul>
+            
+            <div class="nav-buttons">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                        <a href="pages/admin-panel.php" class="nav-btn btn-outline">Pannel Admin</a>
+                    <?php else: ?>
+                        <a href="profile.php" class="nav-btn btn-outline">Mon Profil</a>
+                    <?php endif; ?>
+                    <a href="logout.php" class="nav-btn btn-solid">Déconnexion</a>
+                <?php else: ?>
+                    <a href="login.php" class="nav-btn btn-outline">Connexion</a>
+                    <a href="register.php" class="nav-btn btn-solid"><i class="fas fa-user-plus" style="margin-right: 6px;"></i>Inscription</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </header>
 
     <main style="margin-top: 100px;">
         <div class="container">
@@ -392,28 +426,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-col">
-                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img" style="height:90px;">
-                    <p style="font-family: 'Montserrat', sans-serif;">Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
+                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
                 </div>
                 <div class="footer-col">
-                    <h3 style="font-family: 'Montserrat', sans-serif; font-weight: 700;">Liens Rapides</h3>
-                    <ul style="font-family: 'Montserrat', sans-serif;">
-                        <li><a href="index.php" style="font-family: 'Montserrat', sans-serif;">Accueil</a></li>
-                        <li><a href="destinations.php" style="font-family: 'Montserrat', sans-serif;">Destinations</a></li>
-                        <li><a href="experiences.php" style="font-family: 'Montserrat', sans-serif;">Expériences</a></li>
+                    <h3>Liens Rapides</h3>
+                    <ul>
+                        <li><a href="index.php">Accueil</a></li>
+                        <li><a href="destinations.php">Destinations</a></li>
+                        <li><a href="recommendations.php">Recommandations</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
-                    <h3 style="font-family: 'Montserrat', sans-serif; font-weight: 700;">Contact</h3>
-                    <p style="font-family: 'Montserrat', sans-serif;">contact@marocauthentique.com</p>
-                    <p style="font-family: 'Montserrat', sans-serif;">+212 522 123 456</p>
+                    <h3>Contact</h3>
+                    <p>contact@marocauthentique.com</p>
+                    <p>+212 522 123 456</p>
                 </div>
             </div>
+            <hr>
             <div class="copyright">
-                <p style="font-family: 'Montserrat', sans-serif;">© 2025 Maroc Authentique. Tous droits réservés.</p>
-                <p style="font-family: 'Montserrat', sans-serif; margin-top: 10px;">
-                    <a href="politique-confidentialite.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Politique de confidentialité</a> | 
-                    <a href="conditions-utilisation.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Conditions d'utilisation</a>
+                <p>© 2025 Maroc Authentique. Tous droits réservés.</p>
+                <p>
+                    <a href="politique-confidentialite.php">Politique de confidentialité</a> |
+                    <a href="conditions-utilisation.php">Conditions d'utilisation</a>
                 </p>
             </div>
         </div>

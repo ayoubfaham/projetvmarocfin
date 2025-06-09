@@ -459,156 +459,8 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/montserrat-font.css">
     <link rel="stylesheet" href="../css/main.css">
-    <style>
-        body, .admin-table, .admin-table td, .admin-table th, .form-group, .form-group input, .form-group select, .form-group textarea {
-            font-size: 0.91rem;
-        }
-        .admin-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--white);
-            border-radius: 8px;
-            box-shadow: var(--shadow-md);
-            margin-bottom: 2rem;
-        }
-        .admin-table th, .admin-table td {
-            padding: 14px 10px;
-            text-align: left;
-        }
-        .admin-table th {
-            background: var(--light-color);
-            color: var(--primary-color);
-            font-weight: 600;
-        }
-        .admin-table tr:not(:last-child) {
-            border-bottom: 1px solid var(--border-color);
-        }
-        .admin-table img {
-            height: 40px;
-            border-radius: 4px;
-        }
-        .admin-actions {
-            display: flex;
-            gap: 8px;
-        }
-        .alert-success {
-            background: #e6f9ed;
-            color: #1a7f37;
-            border: 1px solid #b7ebc6;
-            padding: 12px 20px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        /* Styles modernes pour les messages d'administration */
-        .admin-message {
-            padding: 16px 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            font-weight: 500;
-            position: relative;
-            padding-left: 55px;
-            animation: slideInDown 0.5s ease-out forwards;
-            border-left: 5px solid;
-            display: flex;
-            align-items: center;
-        }
-        
-        .admin-message::before {
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
-            position: absolute;
-            left: 20px;
-            font-size: 1.2rem;
-        }
-        
-        .admin-message-success {
-            background-color: #e7f7ef;
-            color: #1d6d4e;
-            border-color: #28a745;
-        }
-        
-        .admin-message-success::before {
-            content: '\f058'; /* check-circle */
-            color: #28a745;
-        }
-        
-        .admin-message-error {
-            background-color: #fef0f0;
-            color: #b02a37;
-            border-color: #dc3545;
-        }
-        
-        .admin-message-error::before {
-            content: '\f057'; /* times-circle */
-            color: #dc3545;
-        }
-        
-        .admin-message-warning {
-            background-color: #fff8e6;
-            color: #997404;
-            border-color: #ffc107;
-        }
-        
-        .admin-message-warning::before {
-            content: '\f071'; /* exclamation-triangle */
-            color: #ffc107;
-        }
-        
-        .admin-message-info {
-            background-color: #e6f3ff;
-            color: #0a58ca;
-            border-color: #0d6efd;
-        }
-        
-        .admin-message-info::before {
-            content: '\f05a'; /* info-circle */
-            color: #0d6efd;
-        }
-        
-        /* Animation pour les messages */
-        @keyframes slideInDown {
-            from {
-                transform: translateY(-20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        /* Ancien style d'alerte conservé pour compatibilité */
-        .alert-error {
-            background: #fff0f0;
-            color: #c0392b;
-            border: 1px solid #f5c6cb;
-            padding: 12px 20px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .admin-form-flex {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-            align-items: flex-end;
-        }
-        .admin-form-flex .form-group {
-            flex: 1 1 180px;
-            margin-bottom: 0;
-        }
-        @media (max-width: 900px) {
-            .admin-form-flex {
-                flex-direction: column;
-                align-items: stretch;
-            }
-        }
-    </style>
 </head>
 <body>
-    <!-- Header/Navbar moderne -->
     <header>
         <div class="container header-container">
             <a href="../index.php" class="logo">
@@ -625,130 +477,122 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
             </div>
         </div>
     </header>
-
-    <main style="margin-top:100px;">
+    <main class="admin-section" style="margin-top:100px;">
     <div class="container">
-            <!-- --- NEW: Display admin messages --- -->
-            <?php if (isset($message)): ?>
-                <div class="admin-message admin-message-<?= $message_type ?>">
-                    <?= htmlspecialchars($message) ?>
-                </div>
-            <?php endif; ?>
-            <!-- --- End Display admin messages --- -->
             <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;">
-                <h2>Gestion des villes <span id="cityCount" style="font-size:1rem;font-weight:400;color:var(--secondary-color);">(<?= count($cities) ?>)</span></h2>
+                <h2>Gestion des Villes <span id="cityCount" style="font-size:1rem;font-weight:400;color:var(--secondary-color);">(<?php echo count($cities); ?>)</span></h2>
                 <input type="text" id="searchCityInput" placeholder="Rechercher une ville..." style="padding:10px 16px;border:1px solid var(--border-color);border-radius:6px;min-width:220px;">
             </div>
-            <section class="section">
-                <?php if ($success): ?><div class="alert-success"><?= $success ?></div><?php endif; ?>
-                <?php if ($error): ?><div class="alert-error"><?= $error ?></div><?php endif; ?>
-                <div class="form" style="max-width:900px;margin:0 auto 40px auto;">
-                    <h3 style="text-align:center;">
-                        <?= $editMode ? 'Modifier la ville' : 'Ajouter une ville' ?>
-                    </h3>
-                    <form method="post" class="admin-form-flex" enctype="multipart/form-data">
-                        <?php if ($editMode): ?>
-                            <input type="hidden" name="edit_id" value="<?= htmlspecialchars($editCity['id']) ?>">
+            <?php if (!empty($success)): ?>
+                <div class="alert alert-success">
+                    <?php echo $success; ?>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-error">
+                    <?php echo $error; ?>
+                </div>
+            <?php endif; ?>
+            <div class="form" style="max-width:900px;margin:0 auto 40px auto;">
+                <h3 style="text-align:center;">
+                    <?php echo $editMode ? 'Modifier la ville' : 'Ajouter une ville'; ?>
+                </h3>
+                <form method="post" class="admin-form-flex" enctype="multipart/form-data">
+                    <?php if ($editMode): ?>
+                        <input type="hidden" name="edit_id" value="<?php echo htmlspecialchars($editCity['id']); ?>">
+                    <?php endif; ?>
+                    <div class="form-group">
+                        <input type="text" name="nom" class="form-control" placeholder="Nom de la ville *" required value="<?php echo htmlspecialchars($editCity['nom']); ?>">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" name="photo" class="form-control" placeholder="URL ou nom du fichier photo (ex: marrakech.jpg)" value="<?php echo htmlspecialchars($editCity['photo']); ?>">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" name="description" class="form-control" placeholder="Description *" required value="<?php echo htmlspecialchars($editCity['description']); ?>">
+                    </div>
+                    <div class="form-group" style="flex-basis: 100%;">
+                        <label for="hero_images_upload">Images pour le Hero Slider (plusieurs fichiers possibles) :</label>
+                        <input type="file" name="hero_images_upload[]" id="hero_images_upload" accept="image/*" multiple>
+                        <?php if ($editMode && !empty($editCity['hero_images'])): ?>
+                            <div style="margin-top: 15px; font-size: 0.9em; color: #555;">
+                                <p style="margin-bottom: 10px;"><strong>Images actuelles :</strong></p>
+                                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                <?php
+                                $current_hero_images = array_map('trim', explode(',', $editCity['hero_images']));
+                                foreach ($current_hero_images as $img_path) {
+                                    if (!empty($img_path)) {
+                                        echo '<div style="position: relative; width: 80px;">';
+                                        echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;">';
+                                        echo '<a href="?delete_hero_image=1&city_id=' . $editCity['id'] . '&image_path=' . urlencode($img_path) . '" onclick="return confirm(\'Supprimer cette image ?\')" style="position: absolute; top: -5px; right: -5px; background: #dc3545; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;"><i class="fas fa-times"></i></a>';
+                                        echo '</div>';
+                                    }
+                                }
+                                ?>
+                                </div>
+                            </div>
                         <?php endif; ?>
-                        <div class="form-group">
-                            <input type="text" name="nom" class="form-control" placeholder="Nom de la ville *" required value="<?= htmlspecialchars($editCity['nom']) ?>">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" name="photo" class="form-control" placeholder="URL ou nom du fichier photo (ex: marrakech.jpg)" value="<?= htmlspecialchars($editCity['photo']) ?>">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" name="description" class="form-control" placeholder="Description *" required value="<?= htmlspecialchars($editCity['description']) ?>">
-                        </div>
-                        <!-- --- NEW: Hero Images Upload Field for Cities --- -->
-                        <div class="form-group" style="flex-basis: 100%;"> <!-- Make this field take full width -->
-                            <label for="hero_images_upload">Images pour le Hero Slider (plusieurs fichiers possibles) :</label>
-                            <input type="file" name="hero_images_upload[]" id="hero_images_upload" accept="image/*" multiple>
-                            <?php if ($editMode && !empty($editCity['hero_images'])): ?>
-                                <div style="margin-top: 15px; font-size: 0.9em; color: #555;">
-                                    <p style="margin-bottom: 10px;"><strong>Images actuelles :</strong></p>
-                                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                                    <?php
-                                    $current_hero_images = array_map('trim', explode(',', $editCity['hero_images']));
-                                    foreach ($current_hero_images as $img_path) {
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button type="submit" class="btn-solid" style="min-width:120px;">
+                            <?php echo $editMode ? 'Enregistrer' : 'Ajouter'; ?>
+                        </button>
+                        <?php if ($editMode): ?>
+                            <a href="admin-cities.php" class="btn-outline" style="min-width:100px;">Annuler</a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+            <div class="section-title">
+                <h3>Liste des villes</h3>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="admin-table" id="citiesTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nom</th>
+                            <th>Hero Photos</th>
+                            <th>Description</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($cities)): ?>
+                            <tr><td colspan="5" style="text-align:center;color:var(--secondary-color);">Aucune ville enregistrée.</td></tr>
+                        <?php endif; ?>
+                        <?php foreach ($cities as $city): ?>
+                        <tr>
+                            <td data-label="ID"><?php echo $city['id']; ?></td>
+                            <td data-label="Nom"><?php echo htmlspecialchars($city['nom']); ?></td>
+                            <td data-label="Hero Photos">
+                                <?php
+                                $hero_images = [];
+                                if (!empty($city['hero_images'])) {
+                                    $hero_images = array_map('trim', explode(',', $city['hero_images']));
+                                }
+                                if (!empty($hero_images)) {
+                                    foreach ($hero_images as $img_path) {
                                         if (!empty($img_path)) {
-                                            echo '<div style="position: relative; width: 80px;">';
-                                            echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;">';
-                                            echo '<a href="?delete_hero_image=1&city_id=' . $editCity['id'] . '&image_path=' . urlencode($img_path) . '" onclick="return confirm(\'Supprimer cette image ?\')" style="position: absolute; top: -5px; right: -5px; background: #dc3545; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;"><i class="fas fa-times"></i></a>';
-                                            echo '</div>';
+                                            echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 40px; height: 40px; object-fit: cover; margin-right: 5px; border-radius: 4px;">';
                                         }
                                     }
-                                    ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <!-- --- END NEW: Hero Images Upload Field for Cities --- -->
-
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <button type="submit" class="btn-solid" style="min-width:120px;">
-                                <?= $editMode ? 'Enregistrer' : 'Ajouter' ?>
-                            </button>
-                            <?php if ($editMode): ?>
-                                <a href="admin-cities.php" class="btn-outline" style="min-width:100px;">Annuler</a>
-                            <?php endif; ?>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="section-title">
-                    <h3>Liste des villes</h3>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="admin-table" id="citiesTable">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nom</th>
-                                <th>Hero Photos</th>
-                                <th>Description</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($cities)): ?>
-                                <tr><td colspan="5" style="text-align:center;color:var(--secondary-color);">Aucune ville enregistrée.</td></tr>
-                            <?php endif; ?>
-            <?php foreach ($cities as $city): ?>
-                <tr>
-                    <td data-label="ID"><?= $city['id'] ?></td>
-                    <td data-label="Nom"><?= htmlspecialchars($city['nom']) ?></td>
-                    <td data-label="Hero Photos">
-                        <?php
-                        $hero_images = [];
-                        if (!empty($city['hero_images'])) {
-                            $hero_images = array_map('trim', explode(',', $city['hero_images']));
-                        }
-                        
-                        if (!empty($hero_images)) {
-                            foreach ($hero_images as $img_path) {
-                                if (!empty($img_path)) {
-                                     // Assuming images are in ../uploads/cities/hero/ or similar accessible path
-                                    echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 40px; height: 40px; object-fit: cover; margin-right: 5px; border-radius: 4px;">';
+                                } else {
+                                    echo '<span style="color:var(--secondary-color);font-size:0.9em;">Aucune</span>';
                                 }
-                            }
-                        } else {
-                            echo '<span style="color:var(--secondary-color);font-size:0.9em;">Aucune</span>';
-                        }
-                        ?>
-                    </td>
-                    <td data-label="Description"><?= htmlspecialchars($city['description']) ?></td>
-                    <td data-label="Action">
-                        <div class="admin-actions">
-                            <a href="?edit=<?= $city['id'] ?>" class="btn-outline" style="padding:4px 12px;font-size:0.9rem;">Modifier</a>
-                            <a href="?delete=<?= $city['id'] ?>" class="btn-delete" style="padding:4px 12px;font-size:0.9rem;" onclick="return confirm('Supprimer cette ville ?')">Supprimer</a>
-                        </div>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-                        </tbody>
-        </table>
-    </div>
-            </section>
+                                ?>
+                            </td>
+                            <td data-label="Description"><?php echo htmlspecialchars($city['description']); ?></td>
+                            <td data-label="Action">
+                                <div class="admin-actions">
+                                    <a href="?edit=<?php echo $city['id']; ?>" class="btn-outline" style="padding:4px 12px;font-size:0.9rem;">Modifier</a>
+                                    <a href="?delete=<?php echo $city['id']; ?>" class="btn-delete" style="padding:4px 12px;font-size:0.9rem;" onclick="return confirm('Supprimer cette ville ?')">Supprimer</a>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
 </body>

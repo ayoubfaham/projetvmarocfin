@@ -35,7 +35,7 @@ $categories = [
 ];
 
 // Pagination
-$perPage = 5;
+$perPage = 6;
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $selectedCategory = isset($_GET['categorie']) ? $_GET['categorie'] : 'all';
 
@@ -43,15 +43,23 @@ $selectedCategory = isset($_GET['categorie']) ? $_GET['categorie'] : 'all';
 $params = [$cityId];
 
 if ($selectedCategory === 'all') {
-    // Si 'Tous les lieux' est sélectionné, on prend 6 lieux aléatoires parmi TOUTES les catégories
-    // (le "à partir des autres catégories" implique de ne pas filtrer par 'all', ce qui est déjà le cas)
-    $sql = "SELECT * FROM lieux WHERE id_ville = ? ORDER BY RAND() LIMIT 6";
-    $sqlCount = "SELECT COUNT(*) as total FROM lieux WHERE id_ville = ?"; // Compte total pour la pagination (même si on en affiche que 6)
-    // La pagination ne sera pas pertinente ici, mais on garde le count pour ne pas casser le reste du code
+    // Pagination classique sur tous les lieux de la ville (6 par page, ordre par nom)
+    $limit = (int)$perPage;
+    $offset = (int)($perPage * ($page - 1));
+    $sql = "SELECT * FROM lieux WHERE id_ville = ? ORDER BY nom LIMIT $limit OFFSET $offset";
+    $sqlCount = "SELECT COUNT(*) as total FROM lieux WHERE id_ville = ?";
+    $paramsCount = $params;
 
-    // Pour le décompte affiché, on peut montrer le total réel ou juste "6 lieux aléatoires"
-    // Gardons le total réel pour l'instant, le "6 lieux aléatoires" sera clair visuellement.
+    // Exécution de la requête COUNT
+    $stmtCount = $pdo->prepare($sqlCount);
+    $stmtCount->execute($paramsCount);
+    $totalPlaces = $stmtCount->fetch()['total'];
+    $totalPages = max(1, ceil($totalPlaces / $perPage));
 
+    // Récupération des lieux paginés
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } else if (in_array($selectedCategory, $categories)) {
     // Si une catégorie spécifique est sélectionnée, on filtre par cette catégorie avec pagination
     $sql = "SELECT * FROM lieux WHERE id_ville = ? AND categorie = ?";
@@ -64,6 +72,14 @@ if ($selectedCategory === 'all') {
     $offset = (int)($perPage * ($page - 1));
     $sql .= " ORDER BY nom LIMIT $limit OFFSET $offset"; // On ordonne par nom ou autre pour la pagination
 
+    $stmtCount = $pdo->prepare($sqlCount);
+    $stmtCount->execute($paramsCount);
+    $totalPlaces = $stmtCount->fetch()['total'];
+    $totalPages = max(1, ceil($totalPlaces / $perPage));
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } else {
     // Cas par défaut ou catégorie invalide, afficher tous les lieux paginés (comportement par défaut si 'all' n'était pas spécial)
     // Pour garder la logique spéciale de 'all', ce bloc ne devrait pas être atteint si $selectedCategory est 'all'
@@ -75,26 +91,16 @@ if ($selectedCategory === 'all') {
      $limit = (int)$perPage;
      $offset = (int)($perPage * ($page - 1));
      $sql .= " ORDER BY categorie, nom LIMIT $limit OFFSET $offset";
+
+    $stmtCount = $pdo->prepare($sqlCount);
+    $stmtCount->execute($paramsCount);
+    $totalPlaces = $stmtCount->fetch()['total'];
+    $totalPages = max(1, ceil($totalPlaces / $perPage));
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
-
-// Exécution de la requête COUNT (déplacée ici pour être après la construction de $sqlCount et $paramsCount)
-// Si selectedCategory est 'all', $paramsCount n'est pas défini, utilisons $params pour le count total
-$stmtCount = $pdo->prepare($sqlCount);
-$stmtCount->execute($selectedCategory === 'all' ? $params : $paramsCount); // Utilise $params pour 'all', $paramsCount pour catégories
-$totalPlaces = $stmtCount->fetch()['total'];
-$totalPages = max(1, ceil($totalPlaces / $perPage)); // Calcule le totalPages basé sur le total réel pour les catégories spécifiques
-
-// Si selectedCategory est 'all', on force 1 page car on affiche toujours 6 résultats
-if ($selectedCategory === 'all') {
-    $totalPages = 1; // Pas de pagination pour 6 résultats aléatoires
-}
-
-
-// Récupération des lieux paginés ou aléatoires
-$stmt = $pdo->prepare($sql);
-// Exécute la requête avec les paramètres corrects ($params)
-$stmt->execute($params);
-$places = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Récupérer les catégories présentes dans la ville
 $catStmt = $pdo->prepare("SELECT DISTINCT categorie FROM lieux WHERE id_ville = ?");
@@ -123,6 +129,10 @@ $categoryIcons = [
     'Shopping' => 'fa-shopping-bag',
     'Vie nocturne' => 'fa-martini-glass-citrus'
 ];
+
+// Récupérer toutes les villes
+$stmt = $pdo->query("SELECT id, nom FROM villes ORDER BY nom");
+$villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 <!DOCTYPE html>
@@ -442,14 +452,14 @@ $categoryIcons = [
         box-shadow: none !important;
         transition: transform 0.35s;
     }
+    .nav-menu {
+        gap: 22px !important;
+    }
     .nav-menu li a {
-        font-size: 1.35rem !important;
-        font-weight: 600;
-        letter-spacing: 0.2px;
-        color: #222;
-        transition: color 0.2s, border-bottom 0.2s;
-        border-bottom: 3px solid transparent;
-        padding-bottom: 4px;
+        font-size: 1.05rem !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.1px !important;
+        padding-bottom: 2px !important;
     }
     .nav-menu li a.active,
     .nav-menu li a:hover {
@@ -505,13 +515,40 @@ $categoryIcons = [
     </style>
 </head>
 <body>
+    <!-- Header -->
+    <header class="hero-header">
+        <div class="header-container">
+            <a href="index.php" class="logo">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+            </a>
+            
+            <ul class="nav-menu">
+                <li><a href="index.php">Accueil</a></li>
+                <li><a href="destinations.php">Destinations</a></li>
+                <li><a href="recommendations.php">Recommandations</a></li>
+            </ul>
+            
+            <div class="nav-buttons">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <?php if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] == 1): ?>
+                        <a href="admin/index.php" class="nav-btn btn-outline">Panneau Admin</a>
+                    <?php else: ?>
+                        <a href="profile.php" class="nav-btn btn-outline">Mon Profil</a>
+                    <?php endif; ?>
+                    <a href="logout.php" class="nav-btn btn-solid">Déconnexion</a>
+                <?php else: ?>
+                    <a href="login.php" class="nav-btn btn-outline">Connexion</a>
+                    <a href="register.php" class="nav-btn btn-solid"><i class="fas fa-user-plus" style="margin-right: 6px;"></i>Inscription</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </header>
+
     <!-- HERO FULL WIDTH AVEC HEADER -->
     <?php if ($city): ?>
     <section class="hero" style="height:120vh; min-height:800px; display:flex; align-items:center; justify-content:center; position:relative; width:100vw; max-width:100vw; margin-left:calc(-50vw + 50%); overflow: hidden;">
         <div class="hero-background"></div>
         
-        
-        <?php include 'includes/header.php'; ?>
         <div class="hero-overlay"></div>
         <div class="hero-content premium">
         </div>
@@ -550,9 +587,24 @@ $categoryIcons = [
                                 $stmt = $pdo->prepare("SELECT AVG(rating) FROM avis WHERE id_lieu = ?");
                                 $stmt->execute([$place['id']]);
                                 $placeRating = $stmt->fetchColumn();
+
+                                // Déterminer l'image principale à afficher pour ce lieu
+                                $mainImage = '';
+                                if (!empty($place['hero_images'])) {
+                                    $heroImages = array_filter(array_map('trim', explode(',', $place['hero_images'])));
+                                    if (!empty($heroImages[0])) {
+                                        $mainImage = $heroImages[0];
+                                    }
+                                }
+                                if (empty($mainImage) && !empty($place['photo'])) {
+                                    $mainImage = $place['photo'];
+                                }
+                                if (empty($mainImage)) {
+                                    $mainImage = 'images/default_place_hero.jpg'; // image par défaut si rien
+                                }
                                 ?>
                                 <div class="place-card">
-                                    <div class="place-img"><img src="<?= htmlspecialchars($place['photo']) ?>" alt="<?= htmlspecialchars($place['nom']) ?>"></div>
+                                    <div class="place-img"><img src="<?= htmlspecialchars($mainImage) ?>" alt="<?= htmlspecialchars($place['nom']) ?>"></div>
                                     <div class="place-info">
                                         <div class="place-title-rating">
                                             <span class="place-title"><?= htmlspecialchars($place['nom']) ?></span>

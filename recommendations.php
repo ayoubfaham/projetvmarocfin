@@ -373,6 +373,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .recommend-box { padding: 20px 6vw; }
             .main-title { font-size: 1.5rem; }
         }
+        footer {
+            background: #2D2926;
+            color: #f5f5f5;
+            padding: 60px 0 0 0;
+            font-family: 'Montserrat', sans-serif;
+            margin-top: 60px;
+        }
+        .footer-grid {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 80px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        .footer-col {
+            flex: 1 1 260px;
+            min-width: 220px;
+            text-align: left;
+        }
+        .footer-col h3 {
+            color: #fff;
+            font-size: 1.45rem;
+            font-weight: 800;
+            margin-bottom: 18px;
+            letter-spacing: -1px;
+        }
+        .footer-col ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .footer-col ul li {
+            margin-bottom: 12px;
+        }
+        .footer-col ul li a {
+            color: #f5f5f5;
+            text-decoration: none;
+            font-size: 1.08rem;
+            transition: color 0.2s;
+        }
+        .footer-col ul li a:hover {
+            color: #bfa14a;
+        }
+        .footer-col p {
+            color: #e0e0e0;
+            font-size: 1.05rem;
+            margin-bottom: 8px;
+        }
+        .footer-col .logo-img {
+            height: 60px;
+            margin-bottom: 18px;
+        }
+        footer hr {
+            border: none;
+            border-top: 1px solid #444;
+            margin: 0 0 24px 0;
+        }
+        .copyright {
+            text-align: center;
+            color: #e0e0e0;
+            font-size: 1.01rem;
+            padding-bottom: 18px;
+        }
+        .copyright a {
+            color: #bfa14a;
+            text-decoration: none;
+            margin: 0 8px;
+            font-size: 1.01rem;
+        }
+        .copyright a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 900px) {
+            .footer-grid {
+                flex-direction: column;
+                gap: 32px;
+                align-items: center;
+                text-align: center;
+            }
+            .footer-col {
+                min-width: 0;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <?php
@@ -392,6 +479,35 @@ $backgroundImages = [
 $backgroundImagesJson = json_encode($backgroundImages);
 ?>
 <body>
+    <!-- Header -->
+    <header class="hero-header">
+        <div class="header-container">
+            <a href="index.php" class="logo">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+            </a>
+            
+            <ul class="nav-menu">
+                <li><a href="index.php">Accueil</a></li>
+                <li><a href="destinations.php">Destinations</a></li>
+                <li><a href="recommendations.php">Recommandations</a></li>
+            </ul>
+            
+            <div class="nav-buttons">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                        <a href="pages/admin-panel.php" class="nav-btn btn-outline">Pannel Admin</a>
+                    <?php else: ?>
+                        <a href="profile.php" class="nav-btn btn-outline">Mon Profil</a>
+                    <?php endif; ?>
+                    <a href="logout.php" class="nav-btn btn-solid">Déconnexion</a>
+                <?php else: ?>
+                    <a href="login.php" class="nav-btn btn-outline">Connexion</a>
+                    <a href="register.php" class="nav-btn btn-solid"><i class="fas fa-user-plus" style="margin-right: 6px;"></i>Inscription</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </header>
+    
     <!-- Conteneurs pour les images d'arrière-plan avec transition -->
     <div id="backgroundContainer" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2;">
         <div id="background1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center center; transition: opacity 1s ease-in-out; opacity: 1;"></div>
@@ -439,7 +555,6 @@ $backgroundImagesJson = json_encode($backgroundImages);
     // Changer l'arrière-plan toutes les 2 secondes
     setInterval(changeBackground, 2000);
     </script>
-    <?php include 'includes/header.php'; ?>
 
     <h1 class="main-title" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">Recommandations Personnalisées</h1>
     <div class="subtitle" style="color: #f0f0f0; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);">Partagez vos préférences pour découvrir des lieux qui correspondent à vos intérêts</div>
@@ -702,28 +817,29 @@ $backgroundImagesJson = json_encode($backgroundImages);
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-col">
-                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img" style="height:90px;">
-                    <p style="font-family: 'Montserrat', sans-serif;">Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
+                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
                 </div>
                 <div class="footer-col">
-                    <h3 style="font-family: 'Montserrat', sans-serif; font-weight: 700;">Liens Rapides</h3>
-                    <ul style="font-family: 'Montserrat', sans-serif;">
-                        <li><a href="index.php" style="font-family: 'Montserrat', sans-serif;">Accueil</a></li>
-                        <li><a href="destinations.php" style="font-family: 'Montserrat', sans-serif;">Destinations</a></li>
-                        <li><a href="experiences.php" style="font-family: 'Montserrat', sans-serif;">Expériences</a></li>
+                    <h3>Liens Rapides</h3>
+                    <ul>
+                        <li><a href="index.php">Accueil</a></li>
+                        <li><a href="destinations.php">Destinations</a></li>
+                        <li><a href="recommendations.php">Recommandations</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
-                    <h3 style="font-family: 'Montserrat', sans-serif; font-weight: 700;">Contact</h3>
-                    <p style="font-family: 'Montserrat', sans-serif;">contact@marocauthentique.com</p>
-                    <p style="font-family: 'Montserrat', sans-serif;">+212 522 123 456</p>
+                    <h3>Contact</h3>
+                    <p>contact@marocauthentique.com</p>
+                    <p>+212 522 123 456</p>
                 </div>
             </div>
+            <hr>
             <div class="copyright">
-                <p style="font-family: 'Montserrat', sans-serif;">© 2025 Maroc Authentique. Tous droits réservés.</p>
-                <p style="font-family: 'Montserrat', sans-serif; margin-top: 10px;">
-                    <a href="politique-confidentialite.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Politique de confidentialité</a> | 
-                    <a href="conditions-utilisation.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Conditions d'utilisation</a>
+                <p>© 2025 Maroc Authentique. Tous droits réservés.</p>
+                <p>
+                    <a href="politique-confidentialite.php">Politique de confidentialité</a> |
+                    <a href="conditions-utilisation.php">Conditions d'utilisation</a>
                 </p>
             </div>
         </div>

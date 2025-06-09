@@ -32,6 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom']) && !isset($_PO
     $id_ville = intval($_POST['id_ville']);
     $categorie = $_POST['categorie'] ?? '';
     $url_activite = $_POST['url_activite'] ?? '';
+    // Sécuriser la longueur de l'URL d'activité (évite l'erreur SQL 1406)
+    $url_activite = mb_substr($url_activite, 0, 255);
     // --- REMOVED: Old photo variables ---
     // $photo = $_POST['photo'] ?? '';
     // $photo2 = $_POST['photo2'] ?? '';
@@ -220,6 +222,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
     $id_ville = intval($_POST['id_ville']);
     $categorie = $_POST['categorie'] ?? '';
     $url_activite = $_POST['url_activite'] ?? '';
+    // Sécuriser la longueur de l'URL d'activité (évite l'erreur SQL 1406)
+    $url_activite = mb_substr($url_activite, 0, 255);
     $allowed = ['jpg', 'jpeg', 'png', 'webp'];
     
     $uploaded_hero_images = []; // Array to store paths of newly uploaded hero images
@@ -497,23 +501,87 @@ if (isset($_GET['edit'])) {
 
 // Liste des lieux et villes
 $ville_filter = isset($_GET['ville_id']) ? intval($_GET['ville_id']) : 0;
+$categorie_filter = isset($_GET['categorie']) ? trim($_GET['categorie']) : '';
 
-if ($ville_filter > 0) {
-    // Filtrer les lieux par ville si un ID de ville est spécifié
-    $stmt = $pdo->prepare("SELECT lieux.*, villes.nom AS ville_nom FROM lieux JOIN villes ON lieux.id_ville = villes.id WHERE lieux.id_ville = ?");
-    $stmt->execute([$ville_filter]);
-    $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Charger toutes les villes avec gestion d'erreur
+$cities = [];
+try {
+    $stmt = $pdo->query("SELECT id, nom FROM villes ORDER BY nom");
+    $cities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    error_log("Villes chargées depuis la base de données : " . count($cities));
     
-    // Récupérer le nom de la ville filtrée pour l'afficher
-    $stmt = $pdo->prepare("SELECT nom FROM villes WHERE id = ?");
-    $stmt->execute([$ville_filter]);
-    $filtered_city_name = $stmt->fetchColumn();
-} else {
-    // Afficher tous les lieux si aucun filtre n'est spécifié
-    $places = $pdo->query("SELECT lieux.*, villes.nom AS ville_nom FROM lieux JOIN villes ON lieux.id_ville = villes.id")->fetchAll(PDO::FETCH_ASSOC);
+    // Afficher les noms des villes pour le débogage
+    $city_names = array_map(function($city) { return $city['nom']; }, $cities);
+    error_log("Liste des villes : " . implode(", ", $city_names));
+    
+} catch (PDOException $e) {
+    error_log("Erreur lors du chargement des villes : " . $e->getMessage());
+    $_SESSION['admin_message'] = "Erreur lors du chargement des villes : " . $e->getMessage();
+    $_SESSION['admin_message_type'] = 'error';
 }
 
-$cities = $pdo->query("SELECT * FROM villes")->fetchAll(PDO::FETCH_ASSOC);
+if ($ville_filter > 0 && $categorie_filter !== '') {
+    // Filtrer par ville ET catégorie
+    try {
+        $stmt = $pdo->prepare("SELECT lieux.*, villes.nom AS ville_nom FROM lieux LEFT JOIN villes ON lieux.id_ville = villes.id WHERE lieux.id_ville = ? AND LOWER(TRIM(lieux.categorie)) = LOWER(TRIM(?))");
+        $stmt->execute([$ville_filter, $categorie_filter]);
+        $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt = $pdo->prepare("SELECT nom FROM villes WHERE id = ?");
+        $stmt->execute([$ville_filter]);
+        $filtered_city_name = $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("Erreur lors du filtrage par ville et catégorie : " . $e->getMessage());
+        $places = [];
+    }
+} elseif ($ville_filter > 0) {
+    // Filtrer par ville uniquement
+    try {
+        $stmt = $pdo->prepare("SELECT lieux.*, villes.nom AS ville_nom FROM lieux LEFT JOIN villes ON lieux.id_ville = villes.id WHERE lieux.id_ville = ?");
+        $stmt->execute([$ville_filter]);
+        $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt = $pdo->prepare("SELECT nom FROM villes WHERE id = ?");
+        $stmt->execute([$ville_filter]);
+        $filtered_city_name = $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("Erreur lors du filtrage par ville : " . $e->getMessage());
+        $places = [];
+    }
+} elseif ($categorie_filter !== '') {
+    // Filtrer par catégorie uniquement
+    try {
+        $stmt = $pdo->prepare("SELECT lieux.*, villes.nom AS ville_nom FROM lieux LEFT JOIN villes ON lieux.id_ville = villes.id WHERE LOWER(TRIM(lieux.categorie)) = LOWER(TRIM(?))");
+        $stmt->execute([$categorie_filter]);
+        $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Erreur lors du filtrage par catégorie : " . $e->getMessage());
+        $places = [];
+    }
+} else {
+    // Afficher tous les lieux si aucun filtre n'est spécifié
+    try {
+        $stmt = $pdo->query("SELECT lieux.*, villes.nom AS ville_nom FROM lieux LEFT JOIN villes ON lieux.id_ville = villes.id");
+        $places = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Debug: Afficher le nombre total de lieux
+        error_log("Nombre total de lieux chargés : " . count($places));
+        
+        // Debug: Afficher le nombre de lieux par catégorie
+        $categories = [];
+        foreach ($places as $place) {
+            $categorie = $place['categorie'] ?? 'Non défini';
+            if (!isset($categories[$categorie])) {
+                $categories[$categorie] = 0;
+            }
+            $categories[$categorie]++;
+        }
+        foreach ($categories as $categorie => $count) {
+            error_log("Catégorie '$categorie': $count lieux");
+        }
+    } catch (PDOException $e) {
+        error_log("Erreur lors du chargement des lieux : " . $e->getMessage());
+        $places = [];
+    }
+}
 
 // --- Display admin messages ---
 if (isset($_SESSION['admin_message'])) {
@@ -531,272 +599,334 @@ if (isset($_SESSION['admin_message'])) {
     <title>Admin - Gestion des lieux</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../css/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body, .admin-table, .admin-table td, .admin-table th, .form-group, .form-group input, .form-group select, .form-group textarea {
-            font-size: 0.91rem;
+        body {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            background: #f6f7fb;
+            color: #222;
         }
-        
-        /* Styles modernes pour les messages d'administration */
-        .admin-message {
-            padding: 16px 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            font-weight: 500;
-            position: relative;
-            padding-left: 55px;
-            animation: slideInDown 0.5s ease-out forwards;
-            border-left: 5px solid;
-            display: flex;
-            align-items: center;
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 16px 64px 16px;
         }
-        
-        .admin-message::before {
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
-            position: absolute;
-            left: 20px;
-            font-size: 1.2rem;
-        }
-        
-        .admin-message-success {
-            background-color: #e7f7ef;
-            color: #1d6d4e;
-            border-color: #28a745;
-        }
-        
-        .admin-message-success::before {
-            content: '\f058'; /* check-circle */
-            color: #28a745;
-        }
-        
-        .admin-message-error {
-            background-color: #fef0f0;
-            color: #b02a37;
-            border-color: #dc3545;
-        }
-        
-        .admin-message-error::before {
-            content: '\f057'; /* times-circle */
-            color: #dc3545;
-        }
-        
-        .admin-message-warning {
-            background-color: #fff8e6;
-            color: #997404;
-            border-color: #ffc107;
-        }
-        
-        .admin-message-warning::before {
-            content: '\f071'; /* exclamation-triangle */
-            color: #ffc107;
-        }
-        
-        .admin-message-info {
-            background-color: #e6f3ff;
-            color: #0a58ca;
-            border-color: #0d6efd;
-        }
-        
-        .admin-message-info::before {
-            content: '\f05a'; /* info-circle */
-            color: #0d6efd;
-        }
-        
-        /* Animation pour les messages */
-        @keyframes slideInDown {
-            from {
-                transform: translateY(-20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+        .section-title h2, .section-title h3 {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 800;
+            color: #2d2d2d;
+            letter-spacing: 1px;
         }
         .admin-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             margin-top: 20px;
-            background: var(--white);
-            border-radius: 12px;
+            background: #fff;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: var(--shadow-md);
-            min-width: 700px;
+            box-shadow: 0 2px 12px rgba(44,44,44,0.06);
+            border: 1.5px solid #e9cba7;
         }
-        .admin-table th,
-        .admin-table td {
-            padding: 16px 12px;
+        .admin-table thead th {
+            background: #fff;
+            color: #bfa14a;
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 700;
+            font-size: 1.08rem;
+            border-bottom: 2px solid #e9cba7;
+            padding: 18px 14px;
+            letter-spacing: 0.5px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
         }
-        .admin-table th {
-            background: var(--primary-color);
-            color: var(--white);
-            font-weight: 600;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+        .admin-table th, .admin-table td {
+            padding: 18px 14px;
+            text-align: left;
+            border-bottom: 1px solid #f3e9d1;
+            font-size: 1.01rem;
         }
         .admin-table tr:nth-child(even) {
-            background: #f8f8f8;
+            background: #fafbfc;
         }
         .admin-table tr:hover {
-            background: #f1f1f1;
+            background: #f9f6f2;
         }
-        .place-thumb {
-            width: 48px;
-            height: 48px;
-            object-fit: cover;
+        .btn-solid, .btn-outline {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 600;
             border-radius: 8px;
-            background: #eee;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 10px 28px;
+            font-size: 1.08rem;
+            border: 1.5px solid #e9cba7;
+            box-shadow: 0 2px 8px #e9cba733;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+            cursor: pointer;
+        }
+        .btn-solid {
+            background: #e9cba7;
+            color: #222;
+        }
+        .btn-solid:hover {
+            background: #bfa14a;
+            color: #fff;
+        }
+        .btn-outline {
+            background: #fff;
+            color: #bfa14a;
+        }
+        .btn-outline:hover {
+            background: #bfa14a;
+            color: #fff;
         }
         .btn-delete {
             background: #dc3545;
             color: #fff;
             border: none;
-            padding: 8px 18px;
-            border-radius: 6px;
+            padding: 9px 22px;
+            border-radius: 8px;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 1rem;
             transition: background 0.2s;
         }
         .btn-delete:hover {
             background: #b52a37;
         }
+        input, select, textarea {
+            padding: 12px 20px;
+            border: 1.5px solid #e9cba7;
+            border-radius: 8px;
+            background: #fff;
+            color: #222;
+            font-size: 1.08rem;
+            box-shadow: 0 2px 8px #e9cba733;
+            transition: border 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #bfa14a;
+            box-shadow: 0 4px 16px #e9cba755;
+            background: #fff;
+        }
+        .admin-filters-bar {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 18px #e9cba733;
+            padding: 18px 28px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            max-width: 900px;
+            margin: 0 auto 28px auto;
+        }
+        .admin-filters-bar select,
+        .admin-filters-bar input[type="text"] {
+            min-width: 170px;
+            height: 44px;
+            font-size: 1.05rem;
+            border-radius: 10px;
+            border: 1.5px solid #e9cba7;
+            background: #faf9f7;
+            color: #222;
+            padding: 0 18px;
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            box-shadow: 0 2px 8px #e9cba733;
+            transition: border 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .admin-filters-bar select:focus,
+        .admin-filters-bar input[type="text"]:focus {
+            border-color: #bfa14a;
+            background: #fff;
+        }
+        #btnRechercher {
+            background: #e9cba7;
+            color: #222;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1.08rem;
+            padding: 0 32px;
+            height: 44px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px #e9cba733;
+            transition: background 0.2s, color 0.2s;
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            margin-left: 8px;
+            display: flex;
+            align-items: center;
+        }
+        #btnRechercher:hover {
+            background: #bfa14a;
+            color: #fff;
+        }
         @media (max-width: 900px) {
+            .admin-filters-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px 8px;
+                max-width: 98vw;
+            }
+        }
+        footer {
+            background: #fff;
+            color: #bfa14a;
+            text-align: center;
+            padding: 18px 0 0 0;
+            font-size: 1rem;
+            border-top: 1.5px solid #e9cba7;
+            margin-top: 48px;
+        }
+        @media (max-width: 900px) {
+            .container { max-width: 98vw; padding: 12px 2vw 32px 2vw; }
+            .admin-table th, .admin-table td { font-size: 0.97rem; padding: 12px 7px; }
+        }
+        @media (max-width: 600px) {
             .admin-table, .admin-table thead, .admin-table tbody, .admin-table th, .admin-table td, .admin-table tr {
                 display: block;
             }
-            .admin-table thead tr {
-                display: none;
-            }
+            .admin-table thead tr { display: none; }
             .admin-table tr {
                 margin-bottom: 18px;
                 border-radius: 8px;
-                box-shadow: var(--shadow-md);
+                box-shadow: 0 2px 8px #e9cba733;
                 background: #fff;
             }
             .admin-table td {
-                padding: 12px 16px;
+                padding: 12px 8px;
                 border: none;
                 position: relative;
             }
             .admin-table td:before {
                 content: attr(data-label);
                 font-weight: 600;
-                color: var(--primary-color);
+                color: #bfa14a;
                 display: block;
                 margin-bottom: 6px;
                 text-transform: uppercase;
                 font-size: 0.9em;
             }
         }
-        .admin-filters-bar {
+        .admin-alert {
+            max-width: 480px;
+            margin: 32px auto 0 auto;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(44,44,44,0.09);
+            padding: 22px 32px 20px 32px;
             display: flex;
-            gap: 18px;
             align-items: center;
+            gap: 16px;
+            font-size: 1.13rem;
+            font-family: 'Poppins', Arial, sans-serif;
+            font-weight: 500;
             justify-content: center;
-            margin: 0 0 32px 0;
-            flex-wrap: wrap;
-        }
-        .admin-filters-bar select {
-            padding: 10px 18px;
-            border: 1.5px solid var(--primary-color, #b48a3c);
-            border-radius: 8px;
-            background: #faf9f7;
-            color: #222;
-            font-size: 1.05rem;
-            box-shadow: 0 2px 8px rgba(180,138,60,0.07);
-            transition: border 0.2s, box-shadow 0.2s;
-            outline: none;
-            min-width: 180px;
-        }
-        .admin-filters-bar select:focus {
-            border-color: var(--accent-color, #d4af37);
-            box-shadow: 0 4px 16px rgba(180,138,60,0.13);
-            background: #fff;
-        }
-        .search-bar-admin {
-            max-width: 400px;
-            margin: 0;
+            text-align: center;
             position: relative;
-        }
-        .search-bar-admin input[type="text"] {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1.5px solid var(--primary-color, #b48a3c);
-            border-radius: 8px;
-            font-size: 1.08rem;
-            background: #faf9f7;
-            color: #222;
-            box-shadow: 0 2px 8px rgba(180,138,60,0.07);
-            transition: border 0.2s, box-shadow 0.2s;
-            outline: none;
-        }
-        .search-bar-admin input[type="text"]:focus {
-            border-color: var(--accent-color, #d4af37);
-            box-shadow: 0 4px 16px rgba(180,138,60,0.13);
-            background: #fff;
-        }
-        #suggestionsLieu {
-            position: absolute;
             z-index: 10;
-            width: 100%;
-            background: #fff;
-            border: 1.5px solid var(--primary-color, #b48a3c);
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            box-shadow: 0 8px 24px rgba(180,138,60,0.10);
-            display: none;
-            max-height: 220px;
-            overflow-y: auto;
+            border: 1.5px solid #e9cba7;
+            animation: fadeInDown 0.7s cubic-bezier(.23,1.01,.32,1) both;
         }
-        #suggestionsLieu div {
-            padding: 12px 16px;
-            cursor: pointer;
-            font-size: 1.05rem;
-            color: #222;
-            transition: background 0.15s;
+        .admin-alert i {
+            font-size: 1.6em;
+            flex-shrink: 0;
         }
-        #suggestionsLieu div:hover {
-            background: #f7f3e7;
-            color: var(--primary-color, #b48a3c);
+        .admin-alert-success {
+            color: #2e7d32;
+            border-color: #b7e1c6;
+        }
+        .admin-alert-error {
+            color: #b52a37;
+            border-color: #f5b7b1;
+        }
+        .admin-alert-info {
+            color: #bfa14a;
+            border-color: #e9cba7;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 600px) {
+            .admin-alert {
+                max-width: 98vw;
+                padding: 14px 8vw 14px 8vw;
+                font-size: 1rem;
+            }
+        }
+        .admin-table th.col-description,
+        .admin-table td.col-description {
+            min-width: 400px;
+            max-width: 700px;
+            width: 40vw;
+            white-space: pre-line;
+            word-break: break-word;
+        }
+        .admin-table th.col-hero,
+        .admin-table td.col-hero {
+            min-width: 120px;
+            max-width: 200px;
+        }
+        .admin-table th.col-id,
+        .admin-table td.col-id,
+        .admin-table th.col-idville,
+        .admin-table td.col-idville,
+        .admin-table th.col-lat,
+        .admin-table td.col-lat,
+        .admin-table th.col-lng,
+        .admin-table td.col-lng,
+        .admin-table th.col-rating,
+        .admin-table td.col-rating {
+            width: 80px;
+            max-width: 90px;
+            white-space: nowrap;
+            font-size: 0.98em;
+            text-align: center;
+        }
+        .admin-table th.col-budget,
+        .admin-table td.col-budget {
+            width: 50px;
+            max-width: 60px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <!-- Header/Navbar moderne -->
-    <header>
-        <div class="container header-container">
-            <a href="../index.php" class="logo">
-                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img" style="height:70px;">
+    <header style="background:#fff; box-shadow:0 2px 12px #e9cba733; padding:0;">
+        <div class="container header-container" style="display:flex;align-items:center;justify-content:space-between;min-height:80px;width:100%;">
+            <a href="../index.php" class="logo" style="flex:0 0 auto;display:flex;align-items:center;gap:12px;text-decoration:none;">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img" style="height:54px;">
             </a>
-            <ul class="nav-menu">
-                <li><a href="../index.php">Accueil</a></li>
-                <li><a href="../destinations.php">Destinations</a></li>
-                <li><a href="../recommandations.php">Recommandations</a></li>
+            <ul class="nav-menu" style="flex:1 1 0;display:flex;justify-content:center;gap:36px;list-style:none;margin:0;padding:0;">
+                <li><a href="../index.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Accueil</a></li>
+                <li><a href="../destinations.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Destinations</a></li>
+                <li><a href="../recommandations.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Recommandations</a></li>
             </ul>
-            <div class="auth-buttons">
-                <a href="admin-panel.php" class="btn-outline" style="margin-right:10px;">Panel Admin</a>
-                <a href="../logout.php" class="btn-primary">Déconnexion</a>
+            <div class="auth-buttons" style="flex:0 0 auto;display:flex;align-items:center;gap:12px;">
+                <a href="admin-panel.php" class="btn-outline">Panel Admin</a>
+                <a href="../logout.php" class="btn-solid" style="background:#dc3545;color:#fff;border:none;">Déconnexion</a>
             </div>
         </div>
     </header>
 
-    <main style="margin-top:100px;">
-    <div class="container">
+    <main style="margin-top:48px;">
+    <div class="container" style="max-width:98vw;width:100%;padding:0 10px;">
             <?php if (isset($message)): ?>
-                <div class="admin-message admin-message-<?= $message_type ?>">
-                    <?= htmlspecialchars($message) ?>
+                <div class="admin-alert admin-alert-<?= $message_type ?>">
+                    <?php if ($message_type === 'success'): ?>
+                        <i class="fas fa-check-circle"></i>
+                    <?php elseif ($message_type === 'error'): ?>
+                        <i class="fas fa-times-circle"></i>
+                    <?php else: ?>
+                        <i class="fas fa-info-circle"></i>
+                    <?php endif; ?>
+                    <span><?= htmlspecialchars($message) ?></span>
                 </div>
             <?php endif; ?>
-            <div class="section-title">
-                <h2>Gestion des lieux</h2>
+            <div class="section-title" style="text-align:center;margin-bottom:38px;">
+                <h2 style="font-size:2.1rem;">Gestion des lieux</h2>
                 <?php if (isset($ville_filter) && $ville_filter > 0 && isset($filtered_city_name)): ?>
                 <div style="text-align: center; margin-top: 10px;">
                     <p style="color: var(--primary-color); font-weight: 500;">Lieux filtrés pour la ville de <strong><?= htmlspecialchars($filtered_city_name) ?></strong></p>
@@ -804,20 +934,19 @@ if (isset($_SESSION['admin_message'])) {
                 </div>
                 <?php endif; ?>
             </div>
-            <section class="section">
-                <div class="form" style="max-width:600px;margin:0 auto 40px auto;">
-                    <h3 style="text-align:center;">
-                        <?= isset($editMode) && $editMode ? 'Modifier le lieu' : 'Ajouter un lieu' ?>
-                    </h3>
+            <section class="section" style="padding:0;">
+                <div class="form" style="max-width:520px;margin:0 auto 40px auto;background:#fff;border-radius:18px;box-shadow:0 4px 18px #e9cba733;padding:38px 32px 28px 32px;">
+                    <h3 style="text-align:center;font-size:1.25rem;font-weight:700;margin-bottom:24px;letter-spacing:0.5px;"> <?= isset($editMode) && $editMode ? 'Modifier le lieu' : 'Ajouter un lieu' ?> </h3>
         <form method="post" enctype="multipart/form-data">
                         <?php if (isset($editMode) && $editMode): ?>
                             <input type="hidden" name="edit_id" value="<?= htmlspecialchars($editPlace['id']) ?>">
                         <?php endif; ?>
-                        <div class="form-group">
-                            <input type="text" name="nom" class="form-control" placeholder="Nom du lieu" required value="<?= isset($editPlace) ? htmlspecialchars($editPlace['nom']) : '' ?>">
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label for="nom" style="font-weight:600;color:#2d2d2d;margin-bottom:7px;display:block;">Nom du lieu</label>
+                            <input type="text" id="nom" name="nom" class="form-control" placeholder="Nom du lieu" required value="<?= isset($editPlace) ? htmlspecialchars($editPlace['nom']) : '' ?>">
                         </div>
-                        <div class="form-group">
-                            <label for="hero_images_upload">Images pour le Hero Slider (plusieurs fichiers possibles) :</label>
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label for="hero_images_upload" style="font-weight:600;color:#2d2d2d;margin-bottom:7px;display:block;">Images pour le Hero Slider (plusieurs fichiers possibles) :</label>
                             <input type="file" name="hero_images_upload[]" id="hero_images_upload" accept="image/*" multiple>
                             <?php if (isset($editPlace) && !empty($editPlace['hero_images'])): ?>
                                 <div style="margin-top: 15px; font-size: 0.9em; color: #555;">
@@ -838,25 +967,28 @@ if (isset($_SESSION['admin_message'])) {
                                 </div>
                             <?php endif; ?>
                         </div>
-                        <div class="form-group">
-                            <input type="text" name="description" class="form-control" placeholder="Description" required value="<?= isset($editPlace) ? htmlspecialchars($editPlace['description']) : '' ?>">
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label for="description" style="font-weight:600;color:#2d2d2d;margin-bottom:7px;display:block;">Description</label>
+                            <input type="text" id="description" name="description" class="form-control" placeholder="Description" required value="<?= isset($editPlace) ? htmlspecialchars($editPlace['description']) : '' ?>">
                         </div>
-                        <div class="form-group">
-                            <input type="text" name="url_activite" class="form-control" placeholder="URL de l'activité (ex: https://www.hotel.com)" value="<?= isset($editPlace) ? htmlspecialchars($editPlace['url_activite'] ?? '') : '' ?>">
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label for="url_activite" style="font-weight:600;color:#2d2d2d;margin-bottom:7px;display:block;">URL de l'activité (ex: https://www.hotel.com)</label>
+                            <input type="text" id="url_activite" name="url_activite" class="form-control" placeholder="URL de l'activité (ex: https://www.hotel.com)" value="<?= isset($editPlace) ? htmlspecialchars($editPlace['url_activite'] ?? '') : '' ?>">
                         </div>
-                        <div class="form-group">
-                            <select name="id_ville" class="form-control" required>
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label for="id_ville" style="font-weight:600;color:#2d2d2d;margin-bottom:7px;display:block;">Ville</label>
+                            <select id="id_ville" name="id_ville" class="form-control" required>
                                 <option value="">Ville</option>
                                 <?php foreach ($cities as $city): ?>
                                     <option value="<?= $city['id'] ?>" <?= (isset($editPlace) && $editPlace['id_ville'] == $city['id']) || (!isset($editPlace) && isset($ville_filter) && $ville_filter == $city['id']) ? 'selected' : '' ?>><?= htmlspecialchars($city['nom']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <select name="categorie" class="form-control" required>
+                        <div class="form-group" style="margin-bottom:28px;">
+                            <label for="categorie" style="font-weight:600;color:#2d2d2d;margin-bottom:7px;display:block;">Catégorie</label>
+                            <select id="categorie" name="categorie" class="form-control" required>
                                 <option value="">Catégorie</option>
                                 <?php
-                                // Utiliser le même tableau de catégories que pour le filtre
                                 $category_display_names = [
                                     'hotels' => 'Hôtels',
                                     'restaurants' => 'Restaurants',
@@ -872,41 +1004,48 @@ if (isset($_SESSION['admin_message'])) {
                                     'culture' => 'Culture',
                                     'histoire' => 'Histoire'
                                 ];
-                                
-                                // Trier les catégories par ordre alphabétique de leur nom d'affichage
                                 asort($category_display_names);
-                                
                                 foreach ($category_display_names as $cat_value => $cat_display_name) {
-                                    $selected = (isset($editPlace) && strtolower($editPlace['categorie']) == strtolower($cat_value)) ? 'selected' : '';
+                                    $selected = (isset($editPlace) && strtolower(trim($editPlace['categorie'])) == strtolower(trim($cat_value))) ? 'selected' : '';
                                     echo "<option value=\"$cat_value\" $selected>$cat_display_name</option>";
                                 }
                                 ?>
                             </select>
                         </div>
-                        <button type="submit" class="btn-solid" style="width:100%;">
-                            <?= isset($editMode) && $editMode ? 'Enregistrer' : 'Ajouter' ?>
-                        </button>
-                        <?php if (isset($editMode) && $editMode): ?>
-                            <a href="admin-places.php" class="btn-outline" style="min-width:100px;">Annuler</a>
-                        <?php endif; ?>
+                        <div style="display:flex;justify-content:center;gap:18px;align-items:center;">
+                            <button type="submit" class="btn-solid" style="min-width:140px;"> <?= isset($editMode) && $editMode ? 'Enregistrer' : 'Ajouter' ?> </button>
+                            <?php if (isset($editMode) && $editMode): ?>
+                                <a href="admin-places.php" class="btn-outline" style="min-width:100px;">Annuler</a>
+                            <?php endif; ?>
+                        </div>
         </form>
                 </div>
 
-                <div class="section-title">
-                    <h3>Liste des lieux</h3>
+                <div class="section-title" style="text-align:center;margin:48px 0 18px 0;">
+                    <h3 style="font-size:1.18rem;font-weight:700;">Liste des lieux</h3>
                 </div>
                 <!-- Filtres combinés -->
                 <div class="admin-filters-bar">
                     <select id="filterVille" class="form-control">
                         <option value="">Toutes les villes</option>
-                        <?php foreach ($cities as $city): ?>
-                            <option value="<?= htmlspecialchars($city['nom']) ?>"><?= htmlspecialchars($city['nom']) ?></option>
-                        <?php endforeach; ?>
+                        <?php 
+                        if (!empty($cities)) {
+                            foreach ($cities as $city): 
+                                $selected = (isset($ville_filter) && $ville_filter == $city['id']) ? 'selected' : '';
+                                ?>
+                                <option value="<?= $city['id'] ?>" data-ville-id="<?= $city['id'] ?>" <?= $selected ?>>
+                                    <?= htmlspecialchars($city['nom']) ?>
+                                </option>
+                            <?php 
+                            endforeach; 
+                        } else {
+                            echo '<option value="" disabled>Aucune ville disponible</option>';
+                        }
+                        ?>
                     </select>
                     <select id="filterCategorie" class="form-control">
-                        <option value="">Toutes les catu00e9gories</option>
+                        <option value="">Toutes les catégories</option>
                         <?php
-                        // Define a mapping for display names (avec normalisation)
                         $category_display_names = [
                             'hotels' => 'Hôtels',
                             'restaurants' => 'Restaurants',
@@ -921,84 +1060,81 @@ if (isset($_SESSION['admin_message'])) {
                             'nature' => 'Nature',
                             'culture' => 'Culture',
                             'histoire' => 'Histoire'
-                            // Add any other categories here
                         ];
-                        
-                        // Collect unique categories from existing places in the database
-                        $stmt = $pdo->query("SELECT DISTINCT categorie FROM lieux WHERE categorie IS NOT NULL AND categorie != ''");
-                        $db_categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
-                        
-                        // Normaliser les catégories de la base de données (minuscules)
-                        $normalized_db_categories = [];
-                        foreach ($db_categories as $cat) {
-                            $normalized_db_categories[] = strtolower($cat);
-                        }
-                        
-                        // Créer un tableau unique de catégories normalisées
-                        $all_categories = array_unique(array_merge(array_keys($category_display_names), $normalized_db_categories));
-                        sort($all_categories);
-
-                        // Utiliser uniquement les catégories définies dans $category_display_names pour éviter les doublons
-                        // Trier les catégories par ordre alphabétique de leur nom d'affichage
                         asort($category_display_names);
-                        
+                        echo '<option value="">Toutes les catégories</option>';
                         foreach ($category_display_names as $cat_value => $cat_display_name) {
-                            echo '<option value="' . htmlspecialchars($cat_value) . '">' . htmlspecialchars($cat_display_name) . '</option>';
+                            $selected = ($categorie_filter !== '' && strtolower(trim($categorie_filter)) == strtolower(trim($cat_value))) ? 'selected' : '';
+                            echo '<option value="' . strtolower(trim($cat_value)) . '" ' . $selected . '>' . htmlspecialchars($cat_display_name) . '</option>';
                         }
                          ?>
                     </select>
-                    <div class="search-bar-admin">
-                        <input type="text" id="searchLieu" class="form-control" placeholder="Rechercher un lieu..." autocomplete="off">
-                        <div id="suggestionsLieu"></div>
-                    </div>
+                    <input type="text" id="searchLieu" class="form-control" placeholder="Rechercher un lieu..." autocomplete="off" style="flex:1;min-width:180px;">
+                    <button id="btnRechercher" class="btn-solid" type="button">Rechercher</button>
                 </div>
                 <div style="overflow-x:auto;">
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Nom</th>
-                                <th>Hero Photos</th>
-                                <th>Description</th>
-                                <th>Ville</th>
                                 <th>Action</th>
+                                <th class="col-id">ID</th>
+                                <th class="col-idville">ID Ville</th>
+                                <th>Nom</th>
+                                <th class="col-hero">Hero Images</th>
+                                <th>Catégorie</th>
+                                <th class="col-description">Description</th>
+                                <th>Adresse</th>
+                                <th>Équipements</th>
+                                <th>Boutiques/Services</th>
+                                <th class="col-lat">Latitude</th>
+                                <th class="col-lng">Longitude</th>
+                                <th class="col-rating">Rating</th>
+                                <th>URL Activité</th>
+                                <th class="col-budget">Budget</th>
                             </tr>
                         </thead>
                         <tbody>
             <?php if (empty($places)): ?>
-                <tr><td colspan="6" style="text-align:center;color:var(--secondary-color);">Aucun lieu enregistré.</td></tr>
+                <tr><td colspan="15" style="text-align:center;color:var(--secondary-color);">Aucun lieu enregistré.</td></tr>
             <?php endif; ?>
             <?php foreach ($places as $place): ?>
-                <tr data-ville="<?= htmlspecialchars($place['ville_nom']) ?>" data-categorie="<?= htmlspecialchars($place['categorie'] ?? '') ?>">
-                                    <td data-label="ID"><?= $place['id'] ?></td>
-                                    <td data-label="Nom"><?= htmlspecialchars($place['nom']) ?></td>
-                                    <td data-label="Hero Photos">
-                                        <?php
-                                        $hero_images = [];
-                                        if (!empty($place['hero_images'])) {
-                                            $hero_images = array_map('trim', explode(',', $place['hero_images']));
-                                        }
-                                        
-                                        if (!empty($hero_images)) {
-                                            foreach ($hero_images as $img_path) {
-                                                if (!empty($img_path)) {
-                                                     // Assuming images are in ../uploads/lieux/hero/ or similar accessible path
-                                                    echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 40px; height: 40px; object-fit: cover; margin-right: 5px; border-radius: 4px;">';
-                                                }
-                                            }
-                                        } else {
-                                            echo '<span style="color:var(--secondary-color);font-size:0.9em;">Aucune</span>';
-                                        }
-                                        ?>
-                                    </td>
-                                    <td data-label="Description"><?= htmlspecialchars($place['description']) ?></td>
-                                    <td data-label="Ville"><?= htmlspecialchars($place['ville_nom']) ?></td>
-                                    <td data-label="Action">
-                                        <div class="admin-actions">
-                                            <a href="?edit=<?= $place['id'] ?>" class="btn-outline" style="padding:4px 12px;font-size:0.9rem;">Modifier</a>
-                                            <a href="?delete=<?= $place['id'] ?>" class="btn-delete" style="padding:4px 12px;font-size:0.9rem;" onclick="return confirm('Supprimer ce lieu ?')">Supprimer</a>
-                                        </div>
+                <tr>
+                    <td>
+                        <div class="admin-actions" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
+                            <a href="?edit=<?= $place['id'] ?>" class="btn-outline" style="padding:4px 12px;font-size:0.9rem;">Modifier</a>
+                            <a href="?delete=<?= $place['id'] ?>" class="btn-delete" style="padding:4px 12px;font-size:0.9rem;" onclick="return confirm('Supprimer ce lieu ?')">Supprimer</a>
+                        </div>
                     </td>
+                    <td class="col-id"><?= $place['id'] ?></td>
+                    <td class="col-idville"><?= $place['id_ville'] ?></td>
+                    <td><?= htmlspecialchars($place['nom']) ?></td>
+                    <td class="col-hero">
+                        <?php
+                        $hero_images = [];
+                        if (!empty($place['hero_images'])) {
+                            $hero_images = array_map('trim', explode(',', $place['hero_images']));
+                        }
+                        if (!empty($hero_images)) {
+                            foreach ($hero_images as $img_path) {
+                                if (!empty($img_path)) {
+                                    echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 40px; height: 40px; object-fit: cover; margin-right: 5px; border-radius: 4px;">';
+                                }
+                            }
+                        } else {
+                            echo '<span style="color:var(--secondary-color);font-size:0.9em;">Aucune</span>';
+                        }
+                        ?>
+                    </td>
+                    <td><?= htmlspecialchars($place['categorie']) ?></td>
+                    <td class="col-description"><?= htmlspecialchars($place['description']) ?></td>
+                    <td><?= htmlspecialchars($place['adresse']) ?></td>
+                    <td><?= htmlspecialchars($place['equipements']) ?></td>
+                    <td><?= htmlspecialchars($place['boutiques_services']) ?></td>
+                    <td class="col-lat"><?= htmlspecialchars($place['latitude']) ?></td>
+                    <td class="col-lng"><?= htmlspecialchars($place['longitude']) ?></td>
+                    <td class="col-rating"><?= htmlspecialchars($place['rating']) ?></td>
+                    <td><?= htmlspecialchars($place['url_activite']) ?></td>
+                    <td class="col-budget"><?= htmlspecialchars($place['budget']) ?></td>
                 </tr>
             <?php endforeach; ?>
                         </tbody>
@@ -1007,88 +1143,198 @@ if (isset($_SESSION['admin_message'])) {
             </section>
         </div>
     </main>
+    <footer>
+        <div class="container" style="text-align:center;">
+            <p style="color:#bfa14a;font-family:'Montserrat',sans-serif;font-size:1rem;margin:18px 0 0 0;">© 2025 Maroc Authentique. Tous droits réservés.</p>
+        </div>
+    </footer>
+
     <script>
-    // Récupérer tous les noms de lieux côté JS
-    const lieux = [
-        <?php foreach ($places as $place): ?>
-            "<?= addslashes($place['nom']) ?>",
-        <?php endforeach; ?>
-    ];
-    const tableRows = document.querySelectorAll('.admin-table tbody tr');
-    const searchInput = document.getElementById('searchLieu');
-    const suggestionsBox = document.getElementById('suggestionsLieu');
-
-    searchInput.addEventListener('input', function() {
-        const val = this.value.toLowerCase();
-        suggestionsBox.innerHTML = '';
-        if (val.length === 0) {
-            suggestionsBox.style.display = 'none';
-            tableRows.forEach(row => row.style.display = '');
-            return;
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterVille = document.getElementById('filterVille');
+        const filterCategorie = document.getElementById('filterCategorie');
+        const searchInput = document.getElementById('searchLieu');
+        const btnRechercher = document.getElementById('btnRechercher');
+        const rows = document.querySelectorAll('tbody tr[data-ville][data-categorie]');
+        const suggestionsBox = document.getElementById('suggestionsLieu');
+        
+        // Récupérer tous les noms de lieux pour la recherche
+        const lieux = Array.from(rows).map(row => ({
+            id: row.querySelector('td:first-child').textContent,
+            nom: row.querySelector('td:nth-child(2)').textContent,
+            ville: row.getAttribute('data-ville') || '',
+            categorie: row.getAttribute('data-categorie') || ''
+        }));
+        
+        // Fonction pour normaliser les chaînes (gestion des accents et majuscules)
+        function normalizeString(str) {
+            if (!str) return '';
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         }
-        // Suggestions
-        const suggestions = lieux.filter(nom => nom.toLowerCase().includes(val));
-        if (suggestions.length > 0) {
-            suggestionsBox.style.display = 'block';
-            suggestions.forEach(sugg => {
-                const div = document.createElement('div');
-                div.textContent = sugg;
-                div.style.padding = '8px 12px';
-                div.style.cursor = 'pointer';
-                div.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    searchInput.value = sugg;
-                    suggestionsBox.style.display = 'none';
-                    // Filtrer la table
-                    tableRows.forEach(row => {
-                        const nomCell = row.querySelector('td[data-label="Nom"]');
-                        if (nomCell && nomCell.textContent.trim() === sugg) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
-                    });
-                });
-                suggestionsBox.appendChild(div);
+        
+        // Fonction pour filtrer les lignes du tableau
+        function filterTable() {
+            const selectedCategorie = filterCategorie ? filterCategorie.value.trim() : '';
+            const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+            
+            rows.forEach(row => {
+                const categorie = row.getAttribute('data-categorie') || '';
+                const nomLieu = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                const description = row.querySelector('td:nth-child(4)').textContent.toLowerCase();
+                
+                // Vérifier les conditions de filtrage (catégorie et recherche SEULEMENT)
+                const categorieMatch = !selectedCategorie || 
+                    normalizeString(categorie) === normalizeString(selectedCategorie) ||
+                    normalizeString(categorie).includes(normalizeString(selectedCategorie));
+                
+                const searchMatch = !searchTerm || 
+                    nomLieu.includes(searchTerm) || 
+                    description.includes(searchTerm) ||
+                    normalizeString(nomLieu).includes(normalizeString(searchTerm)) ||
+                    normalizeString(description).includes(normalizeString(searchTerm));
+                
+                // Afficher ou masquer la ligne selon les filtres
+                row.style.display = (categorieMatch && searchMatch) ? '' : 'none';
             });
-        } else {
-            suggestionsBox.style.display = 'none';
+            
+            // Mettre à jour l'URL avec les paramètres de filtrage
+            updateUrlParams();
         }
-        // Filtrage live (affiche toutes les lignes qui contiennent la lettre)
-        tableRows.forEach(row => {
-            const nomCell = row.querySelector('td[data-label="Nom"]');
-            if (nomCell && nomCell.textContent.toLowerCase().includes(val)) {
-                row.style.display = '';
+        
+        // Fonction pour mettre à jour les paramètres d'URL
+        function updateUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            
+            if (filterCategorie && filterCategorie.value) {
+                params.set('categorie', encodeURIComponent(filterCategorie.value));
             } else {
-                row.style.display = 'none';
+                params.delete('categorie');
             }
+            
+            if (searchInput && searchInput.value) {
+                params.set('recherche', encodeURIComponent(searchInput.value));
+            } else {
+                params.delete('recherche');
+            }
+            
+            // Mettre à jour l'URL sans recharger la page
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.pushState({}, '', newUrl);
+        }
+        
+        // Fonction pour afficher les suggestions de recherche
+        function showSuggestions() {
+            if (!searchInput || !suggestionsBox) return;
+            
+            const searchTerm = searchInput.value.trim().toLowerCase();
+            suggestionsBox.innerHTML = '';
+            
+            if (searchTerm.length < 2) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+            
+            const suggestions = lieux.filter(lieu => 
+                normalizeString(lieu.nom).includes(normalizeString(searchTerm)) ||
+                normalizeString(lieu.ville).includes(normalizeString(searchTerm)) ||
+                normalizeString(lieu.categorie).includes(normalizeString(searchTerm))
+            );
+            
+            if (suggestions.length > 0) {
+                suggestions.forEach(sugg => {
+                    const div = document.createElement('div');
+                    div.textContent = `${sugg.nom} (${sugg.ville})`;
+                    div.addEventListener('click', () => {
+                        searchInput.value = sugg.nom;
+                        suggestionsBox.style.display = 'none';
+                        filterTable();
+                    });
+                    suggestionsBox.appendChild(div);
+                });
+                suggestionsBox.style.display = 'block';
+            } else {
+                suggestionsBox.style.display = 'none';
+            }
+        }
+        
+        // Charger les filtres depuis l'URL au chargement de la page
+        function loadFiltersFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            
+            if (filterCategorie && params.has('categorie')) {
+                const categorie = decodeURIComponent(params.get('categorie'));
+                filterCategorie.value = categorie;
+            }
+            
+            if (searchInput && params.has('recherche')) {
+                searchInput.value = decodeURIComponent(params.get('recherche'));
+            }
+            
+            // Appliquer les filtres
+            filterTable();
+        }
+        
+        // Écouteurs d'événements
+        if (filterCategorie) filterCategorie.addEventListener('change', filterTable);
+        
+        if (searchInput) {
+            // Gestion de la recherche avec suggestions
+            searchInput.addEventListener('input', function() {
+                showSuggestions();
+                // Utiliser un debounce pour éviter de filtrer à chaque frappe
+                clearTimeout(this.timer);
+                this.timer = setTimeout(() => filterTable(), 300);
+            });
+            
+            // Cacher les suggestions quand on clique ailleurs
+            document.addEventListener('click', function(e) {
+                if (e.target !== searchInput && e.target !== suggestionsBox) {
+                    suggestionsBox.style.display = 'none';
+                }
+            });
+        }
+        
+        // Charger les filtres depuis l'URL au chargement de la page
+        loadFiltersFromUrl();
+        
+        // Gérer les boutons de suppression avec confirmation
+        document.querySelectorAll('.btn-delete').forEach(button => {
+            button.addEventListener('click', function(e) {
+                if (!confirm('Êtes-vous sûr de vouloir supprimer ce lieu ? Cette action est irréversible.')) {
+                    e.preventDefault();
+                }
+            });
         });
-    });
-    // Cacher suggestions si clic ailleurs
-    window.addEventListener('click', function(e) {
-        if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-            suggestionsBox.style.display = 'none';
+
+        if (btnRechercher) {
+            btnRechercher.addEventListener('click', function(e) {
+                e.preventDefault();
+                let url = 'admin-places.php';
+                const params = [];
+                if (filterVille && filterVille.value) {
+                    params.push('ville_id=' + encodeURIComponent(filterVille.value));
+                }
+                if (filterCategorie && filterCategorie.value) {
+                    params.push('categorie=' + encodeURIComponent(filterCategorie.value));
+                }
+                if (searchInput && searchInput.value) {
+                    params.push('recherche=' + encodeURIComponent(searchInput.value));
+                }
+                if (params.length > 0) {
+                    url += '?' + params.join('&');
+                }
+                window.location.href = url;
+            });
+        }
+
+        // Désactiver le rechargement automatique sur changement de filtre
+        if (filterVille) {
+            filterVille.onchange = null;
+        }
+        if (filterCategorie) {
+            filterCategorie.onchange = null;
         }
     });
-
-    // Filtres combinés ville + catégorie
-    const filterCategorie = document.getElementById('filterCategorie');
-    function applyFilters() {
-        const ville = filterVille.value;
-        const categorie = filterCategorie.value;
-        tableRows.forEach(row => {
-            const rowVille = row.getAttribute('data-ville');
-            const rowCat = row.getAttribute('data-categorie');
-            const villeOk = !ville || rowVille === ville;
-            const catOk = !categorie || rowCat === categorie;
-            row.style.display = (villeOk && catOk) ? '' : 'none';
-        });
-        // Réinitialise la recherche
-        searchInput.value = '';
-        suggestionsBox.style.display = 'none';
-    }
-    filterVille.addEventListener('change', applyFilters);
-    filterCategorie.addEventListener('change', applyFilters);
     </script>
 </body>
 </html> 

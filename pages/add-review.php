@@ -90,167 +90,202 @@ if (isset($_POST['delete_review_id'])) {
     <title>Gestion des Avis - Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../css/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        body {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            background: #f6f7fb;
+            color: #222;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 16px 64px 16px;
+        }
+        .section-title h2, .section-title h3 {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 800;
+            color: #2d2d2d;
+            letter-spacing: 1px;
+        }
         .admin-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             margin-top: 20px;
-            background: var(--white);
-            border-radius: 12px;
+            background: #fff;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: var(--shadow-md);
-            min-width: 700px;
+            box-shadow: 0 2px 12px rgba(44,44,44,0.06);
+            border: 1.5px solid #e9cba7;
         }
-        .admin-table th,
-        .admin-table td {
-            padding: 16px 12px;
+        .admin-table thead th {
+            background: #fff;
+            color: #bfa14a;
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 700;
+            font-size: 1.08rem;
+            border-bottom: 2px solid #e9cba7;
+            padding: 18px 14px;
+            letter-spacing: 0.5px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 1rem;
         }
-        .admin-table th {
-            background: var(--primary-color);
-            color: var(--white);
-            font-weight: 600;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+        .admin-table th, .admin-table td {
+            padding: 18px 14px;
+            text-align: left;
+            border-bottom: 1px solid #f3e9d1;
+            font-size: 1.01rem;
         }
         .admin-table tr:nth-child(even) {
-            background: #f8f8f8;
+            background: #fafbfc;
         }
         .admin-table tr:hover {
-            background: #f1f1f1;
+            background: #f9f6f2;
         }
-        .rating {
-            color: #ffc107;
+        .admin-table td {
+            vertical-align: top;
         }
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-        }
-        .btn-edit {
-            background: var(--accent-color);
-            color: #fff;
-            border: none;
-            padding: 8px 15px;
+        .admin-table img {
             border-radius: 6px;
-            font-size: 0.95rem;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background 0.2s;
+            box-shadow: 0 2px 8px #e9cba733;
         }
-        .btn-edit:hover {
-            background: #b47b2a;
+        .admin-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .btn-solid, .btn-outline {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 600;
+            border-radius: 8px;
+            padding: 10px 28px;
+            font-size: 1.08rem;
+            border: 1.5px solid #e9cba7;
+            box-shadow: 0 2px 8px #e9cba733;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+            cursor: pointer;
+        }
+        .btn-solid {
+            background: #e9cba7;
+            color: #222;
+        }
+        .btn-solid:hover {
+            background: #bfa14a;
+            color: #fff;
+        }
+        .btn-outline {
+            background: #fff;
+            color: #bfa14a;
+        }
+        .btn-outline:hover {
+            background: #bfa14a;
+            color: #fff;
         }
         .btn-delete {
             background: #dc3545;
             color: #fff;
             border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            font-size: 0.95rem;
+            padding: 9px 22px;
+            border-radius: 8px;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 1rem;
             transition: background 0.2s;
         }
         .btn-delete:hover {
             background: #b52a37;
         }
+        .form {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px #e9cba733;
+            padding: 32px 28px 24px 28px;
+            margin-bottom: 40px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .form-group {
+            margin-bottom: 22px;
+        }
+        .form-group label {
+            font-weight: 500;
+            color: #2d2d2d;
+            margin-bottom: 7px;
+            display: block;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 13px 16px;
+            border: 1.5px solid #bfa14a;
+            border-radius: 8px;
+            background: #faf9f7;
+            color: #222;
+            font-size: 1.05rem;
+            box-shadow: 0 2px 8px #e9cba733;
+            transition: border 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #bfa14a;
+            box-shadow: 0 4px 16px #e9cba755;
+            background: #fff;
+        }
+        footer {
+            background: #fff;
+            color: #bfa14a;
+            text-align: center;
+            padding: 18px 0 0 0;
+            font-size: 1rem;
+            border-top: 1.5px solid #e9cba7;
+            margin-top: 48px;
+        }
         @media (max-width: 900px) {
+            .container { max-width: 98vw; padding: 12px 2vw 32px 2vw; }
+            .admin-table th, .admin-table td { font-size: 0.97rem; padding: 12px 7px; }
+        }
+        @media (max-width: 600px) {
             .admin-table, .admin-table thead, .admin-table tbody, .admin-table th, .admin-table td, .admin-table tr {
                 display: block;
             }
-            .admin-table thead tr {
-                display: none;
-            }
+            .admin-table thead tr { display: none; }
             .admin-table tr {
                 margin-bottom: 18px;
                 border-radius: 8px;
-                box-shadow: var(--shadow-md);
+                box-shadow: 0 2px 8px #e9cba733;
                 background: #fff;
             }
             .admin-table td {
-                padding: 12px 16px;
+                padding: 12px 8px;
                 border: none;
                 position: relative;
             }
             .admin-table td:before {
                 content: attr(data-label);
                 font-weight: 600;
-                color: var(--primary-color);
+                color: #bfa14a;
                 display: block;
                 margin-bottom: 6px;
                 text-transform: uppercase;
                 font-size: 0.9em;
             }
         }
-        .add-form {
-            background: var(--white);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: var(--shadow-md);
-            margin-bottom: 30px;
-        }
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--primary-color);
-            font-weight: 500;
-        }
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            transition: var(--transition);
-        }
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            border-color: var(--accent-color);
-            outline: none;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            background: var(--white);
-            border-radius: 12px;
-            box-shadow: var(--shadow-md);
-        }
-        .empty-state i {
-            font-size: 3rem;
-            color: var(--accent-color);
-            margin-bottom: 20px;
-        }
     </style>
 </head>
 <body>
-    <!-- Header/Navbar moderne -->
-    <header>
-        <div class="container header-container">
-            <a href="../index.php" class="logo">
-                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img" style="height:70px;">
+    <header style="background:#fff; box-shadow:0 2px 12px #e9cba733; padding:0;">
+        <div class="container header-container" style="display:flex;align-items:center;justify-content:space-between;min-height:80px;width:100%;">
+            <a href="../index.php" class="logo" style="flex:0 0 auto;display:flex;align-items:center;gap:12px;text-decoration:none;">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img" style="height:54px;">
             </a>
-            <ul class="nav-menu">
-                <li><a href="../index.php">Accueil</a></li>
-                <li><a href="../destinations.php">Destinations</a></li>
-                <li><a href="../recommandations.php">Recommandations</a></li>
+            <ul class="nav-menu" style="flex:1 1 0;display:flex;justify-content:center;gap:36px;list-style:none;margin:0;padding:0;">
+                <li><a href="../index.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Accueil</a></li>
+                <li><a href="../destinations.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Destinations</a></li>
+                <li><a href="../recommandations.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Recommandations</a></li>
             </ul>
-            <div class="auth-buttons">
-                <a href="admin-panel.php" class="btn-outline" style="margin-right:10px;">Panel Admin</a>
-                <a href="logout.php" class="btn-primary">Déconnexion</a>
+            <div class="auth-buttons" style="flex:0 0 auto;display:flex;align-items:center;gap:12px;">
+                <a href="admin-panel.php" class="btn-outline">Panel Admin</a>
+                <a href="../logout.php" class="btn-solid" style="background:#dc3545;color:#fff;border:none;">Déconnexion</a>
             </div>
         </div>
     </header>
@@ -364,5 +399,10 @@ if (isset($_POST['delete_review_id'])) {
             <?php endif; ?>
         </div>
     </main>
+    <footer>
+        <div class="container" style="text-align:center;">
+            <p style="color:#bfa14a;font-family:'Montserrat',sans-serif;font-size:1rem;margin:18px 0 0 0;">© 2025 Maroc Authentique. Tous droits réservés.</p>
+        </div>
+    </footer>
 </body>
 </html> 

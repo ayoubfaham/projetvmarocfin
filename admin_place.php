@@ -30,20 +30,42 @@ if ($placeId > 0) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_place'])) {
     $equipements = isset($_POST['equipements']) ? trim($_POST['equipements']) : '';
     $boutiques_services = isset($_POST['boutiques_services']) ? trim($_POST['boutiques_services']) : '';
+    $url_activites = isset($_POST['url_activites']) ? trim($_POST['url_activites']) : '';
     
     try {
-        $stmt = $pdo->prepare("UPDATE lieux SET equipements = ?, boutiques_services = ? WHERE id = ?");
-        $stmt->execute([$equipements, $boutiques_services, $placeId]);
+        // Vérifier si la colonne url_activites existe, sinon l'ajouter
+        $checkColumn = $pdo->query("SHOW COLUMNS FROM lieux LIKE 'url_activites'");
+        if ($checkColumn->rowCount() == 0) {
+            $pdo->exec("ALTER TABLE lieux ADD COLUMN url_activites VARCHAR(500) DEFAULT ''");
+        }
+        
+        $stmt = $pdo->prepare("UPDATE lieux SET equipements = ?, boutiques_services = ?, url_activites = ? WHERE id = ?");
+        $stmt->execute([$equipements, $boutiques_services, $url_activites, $placeId]);
         
         $success_message = "Les informations du lieu ont été mises à jour avec succès.";
         
         // Mettre à jour les données locales
         $place['equipements'] = $equipements;
         $place['boutiques_services'] = $boutiques_services;
+        $place['url_activites'] = $url_activites;
     } catch (PDOException $e) {
         $error_message = "Erreur lors de la mise à jour : " . $e->getMessage();
     }
 }
+
+$stmt = $pdo->query("SELECT lieux.*, villes.nom AS ville_nom FROM lieux LEFT JOIN villes ON lieux.id_ville = villes.id");
+$places = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$unique_places = [];
+foreach ($places as $place) {
+    $key = strtolower(trim($place['nom'])) . '_' . $place['id_ville'];
+    if (!isset($unique_places[$key])) {
+        $unique_places[$key] = $place;
+    }
+}
+
+$stmt = $pdo->query("SELECT id, nom FROM villes ORDER BY nom");
+$cities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -178,9 +200,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_place'])) {
                 </div>
                 
                 <div class="form-group">
-                    <label for="boutiques_services">Boutiques & Services Commerciaux</label>
-                    <textarea id="boutiques_services" name="boutiques_services" rows="5"><?= htmlspecialchars($place['boutiques_services'] ?? '') ?></textarea>
-                    <p class="help-text">Séparez les boutiques et services par des virgules. Exemple: Restaurant, Spa, Boutique de souvenirs, Location de vélos</p>
+                    <label for="boutiques_services">Boutiques et services à proximité</label>
+                    <textarea id="boutiques_services" name="boutiques_services" rows="4"><?= htmlspecialchars($place['boutiques_services'] ?? '') ?></textarea>
+                    <p class="help-text">Liste les boutiques et services à proximité, séparés par des virgules</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="url_activites">URL des activités</label>
+                    <input type="url" id="url_activites" name="url_activites" class="form-control" 
+                           value="<?= htmlspecialchars($place['url_activites'] ?? '') ?>" 
+                           placeholder="https://exemple.com/reservation"
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <p class="help-text">Lien vers la page de réservation ou d'activités du lieu</p>
                 </div>
                 
                 <button type="submit" name="update_place" class="btn-primary">Mettre à jour</button>

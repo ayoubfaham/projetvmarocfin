@@ -107,100 +107,194 @@ if (!empty($reviews)) {
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Gérer les avis - Admin</title>
+    <title>Admin - Gestion des avis</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body, .admin-table, .admin-table td, .admin-table th, .form-group, .form-group input, .form-group select, .form-group textarea {
-            font-size: 0.91rem;
+        body {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            background: #f6f7fb;
+            color: #222;
         }
-        body { background: #f8f9fa; }
-        .admin-container { max-width: 950px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 10px rgba(44,62,80,0.07); padding: 36px 32px; }
-        .table th, .table td { vertical-align: middle; }
-        .star { color: #f1c40f; font-size: 1.2rem; }
-        .actions { display: flex; gap: 10px; }
-        
-        /* Styles modernes pour les messages d'administration */
-        .admin-message {
-            padding: 16px 20px;
-            margin: 20px 0;
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 16px 64px 16px;
+        }
+        .section-title h2, .section-title h3 {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 800;
+            color: #2d2d2d;
+            letter-spacing: 1px;
+        }
+        .form {
+            max-width:520px;
+            margin:0 auto 40px auto;
+            background:#fff;
+            border-radius:18px;
+            box-shadow:0 4px 18px #e9cba733;
+            padding:38px 32px 28px 32px;
+        }
+        .form-group {
+            margin-bottom:18px;
+        }
+        .form-group label {
+            font-weight:600;
+            color:#2d2d2d;
+            margin-bottom:7px;
+            display:block;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px 20px;
+            border: 1.5px solid #e9cba7;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            font-weight: 500;
-            position: relative;
-            padding-left: 55px;
-            animation: slideInDown 0.5s ease-out forwards;
-            border-left: 5px solid;
-            display: flex;
-            align-items: center;
+            background: #fff;
+            color: #222;
+            font-size: 1.08rem;
+            box-shadow: 0 2px 8px #e9cba733;
+            transition: border 0.2s, box-shadow 0.2s;
+            outline: none;
         }
-        
-        .admin-message::before {
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
-            position: absolute;
-            left: 20px;
-            font-size: 1.2rem;
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #bfa14a;
+            box-shadow: 0 4px 16px #e9cba755;
+            background: #fff;
         }
-        
-        .admin-message-success {
-            background-color: #e7f7ef;
-            color: #1d6d4e;
-            border-color: #28a745;
+        .btn-solid, .btn-outline {
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 600;
+            border-radius: 8px;
+            padding: 10px 28px;
+            font-size: 1.08rem;
+            border: 1.5px solid #e9cba7;
+            box-shadow: 0 2px 8px #e9cba733;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+            cursor: pointer;
         }
-        
-        .admin-message-success::before {
-            content: '\f058'; /* check-circle */
-            color: #28a745;
+        .btn-solid {
+            background: #e9cba7;
+            color: #222;
         }
-        
-        .admin-message-error {
-            background-color: #fef0f0;
-            color: #b02a37;
-            border-color: #dc3545;
+        .btn-solid:hover {
+            background: #bfa14a;
+            color: #fff;
         }
-        
-        .admin-message-error::before {
-            content: '\f057'; /* times-circle */
-            color: #dc3545;
+        .btn-outline {
+            background: #fff;
+            color: #bfa14a;
         }
-        
-        .admin-message-warning {
-            background-color: #fff8e6;
-            color: #997404;
-            border-color: #ffc107;
+        .btn-outline:hover {
+            background: #bfa14a;
+            color: #fff;
         }
-        
-        .admin-message-warning::before {
-            content: '\f071'; /* exclamation-triangle */
-            color: #ffc107;
+        .btn-delete {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            padding: 9px 22px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.2s;
         }
-        
-        .admin-message-info {
-            background-color: #e6f3ff;
-            color: #0a58ca;
-            border-color: #0d6efd;
+        .btn-delete:hover {
+            background: #b52a37;
         }
-        
-        .admin-message-info::before {
-            content: '\f05a'; /* info-circle */
-            color: #0d6efd;
+        .admin-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(44,44,44,0.06);
+            border: 1.5px solid #e9cba7;
         }
-        
-        /* Animation pour les messages */
-        @keyframes slideInDown {
-            from {
-                transform: translateY(-20px);
-                opacity: 0;
+        .admin-table thead th {
+            background: #fff;
+            color: #bfa14a;
+            font-family: 'Montserrat', 'Poppins', Arial, sans-serif;
+            font-weight: 700;
+            font-size: 1.08rem;
+            border-bottom: 2px solid #e9cba7;
+            padding: 18px 14px;
+            letter-spacing: 0.5px;
+            text-align: left;
+        }
+        .admin-table th, .admin-table td {
+            padding: 18px 14px;
+            text-align: left;
+            border-bottom: 1px solid #f3e9d1;
+            font-size: 1.01rem;
+        }
+        .admin-table tr:nth-child(even) {
+            background: #fafbfc;
+        }
+        .admin-table tr:hover {
+            background: #f9f6f2;
+        }
+        footer {
+            background: #fff;
+            color: #bfa14a;
+            text-align: center;
+            padding: 18px 0 0 0;
+            font-size: 1rem;
+            border-top: 1.5px solid #e9cba7;
+            margin-top: 48px;
+        }
+        @media (max-width: 900px) {
+            .container { max-width: 98vw; padding: 12px 2vw 32px 2vw; }
+            .admin-table th, .admin-table td { font-size: 0.97rem; padding: 12px 7px; }
+        }
+        @media (max-width: 600px) {
+            .admin-table, .admin-table thead, .admin-table tbody, .admin-table th, .admin-table td, .admin-table tr {
+                display: block;
             }
-            to {
-                transform: translateY(0);
-                opacity: 1;
+            .admin-table thead tr { display: none; }
+            .admin-table tr {
+                margin-bottom: 18px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px #e9cba733;
+                background: #fff;
+            }
+            .admin-table td {
+                padding: 12px 8px;
+                border: none;
+                position: relative;
+            }
+            .admin-table td:before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #bfa14a;
+                display: block;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                font-size: 0.9em;
             }
         }
     </style>
 </head>
 <body>
+    <header style="background:#fff; box-shadow:0 2px 12px #e9cba733; padding:0;">
+        <div class="container header-container" style="display:flex;align-items:center;justify-content:space-between;min-height:80px;width:100%;">
+            <a href="../index.php" class="logo" style="flex:0 0 auto;display:flex;align-items:center;gap:12px;text-decoration:none;">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img" style="height:54px;">
+            </a>
+            <ul class="nav-menu" style="flex:1 1 0;display:flex;justify-content:center;gap:36px;list-style:none;margin:0;padding:0;">
+                <li><a href="../index.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Accueil</a></li>
+                <li><a href="../destinations.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Destinations</a></li>
+                <li><a href="../recommandations.php" style="color:#222;font-family:'Montserrat',sans-serif;font-weight:600;font-size:1.08rem;text-decoration:none;transition:color .2s;">Recommandations</a></li>
+            </ul>
+            <div class="auth-buttons" style="flex:0 0 auto;display:flex;align-items:center;gap:12px;">
+                <a href="admin-panel.php" class="btn-outline">Panel Admin</a>
+                <a href="../logout.php" class="btn-solid" style="background:#dc3545;color:#fff;border:none;">Déconnexion</a>
+            </div>
+        </div>
+    </header>
     <div class="admin-container">
         <h2 class="mb-4"><i class="fas fa-star"></i> Gérer les avis</h2>
         <div class="alert alert-info mb-4">
@@ -311,6 +405,12 @@ if (!empty($reviews)) {
         </table>
         <a href="admin-panel.php" class="btn btn-secondary mt-3"><i class="fa fa-arrow-left"></i> Retour au panel admin</a>
     </div>
+    
+    <footer>
+        <div class="container" style="text-align:center;">
+            <p style="color:#bfa14a;font-family:'Montserrat',sans-serif;font-size:1rem;margin:18px 0 0 0;">© 2025 Maroc Authentique. Tous droits réservés.</p>
+        </div>
+    </footer>
     
     <!-- Scripts Bootstrap -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

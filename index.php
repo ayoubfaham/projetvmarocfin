@@ -880,16 +880,103 @@ if (empty($cities)) { echo '<div style="color:red;text-align:center;">Aucune vil
 .why-vmaroc-section .why-card p {
   color:rgb(21, 20, 19) !important;
 }
+footer {
+    background: #2D2926;
+    color: #f5f5f5;
+    padding: 60px 0 30px 0;
+    font-family: 'Montserrat', sans-serif;
+    margin-top: 0px;
+}
+.footer-grid {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-bottom: 40px;
+    flex-wrap: wrap;
+}
+.footer-col {
+    flex: 1 1 260px;
+    min-width: 220px;
+    text-align: left;
+}
+.footer-col h3 {
+    color: #fff;
+    font-size: 1.45rem;
+    font-weight: 800;
+    margin-bottom: 18px;
+    letter-spacing: -1px;
+}
+.footer-col ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.footer-col ul li {
+    margin-bottom: 10px;
+}
+.footer-col ul li a {
+    color: #f5f5f5;
+    text-decoration: none;
+    font-size: 1.08rem;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+.footer-col ul li a:hover {
+    color: #e9cba7;
+}
+.footer-col p {
+    color: #e0e0e0;
+    font-size: 1.08rem;
+    margin: 0 0 10px 0;
+}
+.footer-col a {
+    color: #e9cba7;
+    text-decoration: none;
+    margin: 0 8px;
+    font-weight: 500;
+}
+.footer-col a:hover {
+    text-decoration: underline;
+}
     </style>
 </head>
 <body>
+    <!-- Header -->
+    <header class="hero-header">
+        <div class="header-container">
+            <a href="index.php" class="logo">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+            </a>
+            
+            <ul class="nav-menu">
+                <li><a href="index.php">Accueil</a></li>
+                <li><a href="destinations.php">Destinations</a></li>
+                <li><a href="recommendations.php">Recommandations</a></li>
+            </ul>
+            
+            <div class="nav-buttons">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                        <a href="pages/admin-panel.php" class="nav-btn btn-outline">Pannel Admin</a>
+                    <?php else: ?>
+                        <a href="profile.php" class="nav-btn btn-outline">Mon Profil</a>
+                    <?php endif; ?>
+                    <a href="logout.php" class="nav-btn btn-solid">Déconnexion</a>
+                <?php else: ?>
+                    <a href="login.php" class="nav-btn btn-outline">Connexion</a>
+                    <a href="register.php" class="nav-btn btn-solid"><i class="fas fa-user-plus" style="margin-right: 6px;"></i>Inscription</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </header>
 
 <!-- Hero Fullscreen avec header intégré -->
 <section class="hero" style="height:100vh; min-height:520px; display:flex; align-items:center; justify-content:center; position:relative;">
   <div class="hero-overlay"></div>
   <!-- Header intégré -->
-  <?php include 'includes/header.php'; ?>
-  <!-- Socials supprimés -->
 
   <!-- Bloc premium -->
   <div class="hero-content premium">
@@ -902,11 +989,6 @@ if (empty($cities)) { echo '<div style="color:red;text-align:center;">Aucune vil
         <div class="container">
     <h2 style="text-align:center; font-family:'Playfair Display',serif; font-size:2.6rem; font-weight:800; margin-bottom:18px;">Destinations Populaires</h2>
     <p style="text-align:center; max-width:700px; margin:0 auto 32px auto; color:#444; font-size:1.13rem;">Explorez les villes les plus emblématiques du Maroc et découvrez leur richesse culturelle, historique et gastronomique.</p>
-    <div class="search-container" style="display:flex; justify-content:center; margin-bottom:32px; position:relative;">
-      <input type="text" id="searchInput" placeholder="Rechercher une ville..." style="width:320px; height:44px; border-radius:22px; border:2px solid #e9cba7; font-size:1.08rem; padding:0 18px; font-family:Montserrat,sans-serif; color:#222; background:#fff; box-shadow:0 2px 8px #e9cba733;">
-      <span class="search-icon" style="margin-left:-36px; color:#bfa14a; font-size:1.2rem; align-self:center; cursor:pointer;">&#128269;</span>
-      <div class="search-suggestions" id="searchSuggestions" style="display:none; position:absolute; left:0; right:0; top:48px; background:#fff; border-radius:0 0 18px 18px; box-shadow:0 4px 18px #e9cba755; z-index:10; list-style:none; margin:0 auto; padding:0; max-height:220px; overflow-y:auto; width:320px;"></div>
-            </div>
     <div class="destination-grid" id="destinationGrid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:32px;">
       <?php foreach ($cities as $city): ?>
         <?php if (!in_array(strtolower($city['nom']), $popular)) continue; ?>
@@ -972,153 +1054,38 @@ if (empty($cities)) { echo '<div style="color:red;text-align:center;">Aucune vil
 
 <!-- Footer -->
 <footer>
-        <div class="container">
+    <div class="container">
         <div class="footer-grid">
             <div class="footer-col">
-                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img" style="height:60px;">
-                <p style="margin:18px 0 0 0; color:#555;">Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
-                <!-- Social links supprimés -->
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+                <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
             </div>
             <div class="footer-col">
                 <h3>Liens Rapides</h3>
-                    <ul>
+                <ul>
                     <li><a href="index.php">Accueil</a></li>
                     <li><a href="destinations.php">Destinations</a></li>
                     <li><a href="recommendations.php">Recommandations</a></li>
-                    </ul>
-                </div>
-            <div class="footer-col">
-                <h3>Villes Populaires</h3>
-                    <ul>
-                    <?php
-                    foreach ($popular as $pop) {
-                        foreach ($cities as $city) {
-                            if (strtolower($city['nom']) === $pop) {
-                                echo '<li><a href="city.php?id=' . $city['id'] . '">' . htmlspecialchars($city['nom']) . '</a></li>';
-                                break;
-                            }
-                        }
-                    }
-                    ?>
-                    </ul>
-                </div>
+                </ul>
+            </div>
             <div class="footer-col">
                 <h3>Contact</h3>
                 <p>contact@marocauthentique.com</p>
                 <p>+212 522 123 456</p>
             </div>
         </div>
-            <div class="copyright">
-                <p style="font-family: 'Montserrat', sans-serif;">© 2025 Maroc Authentique. Tous droits réservés.</p>
-                <p style="font-family: 'Montserrat', sans-serif; margin-top: 10px;">
-                    <a href="politique-confidentialite.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Politique de confidentialité</a> | 
-                    <a href="conditions-utilisation.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Conditions d'utilisation</a>
-                </p>
-            </div>
+        <hr>
+        <div class="copyright">
+            <p>© 2025 Maroc Authentique. Tous droits réservés.</p>
+            <p>
+                <a href="politique-confidentialite.php">Politique de confidentialité</a> |
+                <a href="conditions-utilisation.php">Conditions d'utilisation</a>
+            </p>
         </div>
-    </footer>
+    </div>
+</footer>
 
 <script>
-const allCities = <?php echo json_encode($cities); ?>;
-const searchInput = document.getElementById('searchInput');
-const grid = document.getElementById('destinationGrid');
-const suggestionsBox = document.getElementById('searchSuggestions');
-const popular = <?php echo json_encode($popular); ?>;
-
-searchInput.addEventListener('input', function() {
-  const value = this.value.trim().toLowerCase();
-  suggestionsBox.innerHTML = '';
-  
-  if (value.length === 0) {
-    suggestionsBox.style.display = 'none';
-    // Afficher uniquement les villes populaires
-    Array.from(grid.children).forEach(card => {
-      const cardName = card.querySelector('h3').textContent.trim().toLowerCase();
-      card.style.display = popular.includes(cardName) ? '' : 'none';
-    });
-    return;
-  }
-
-  const matches = allCities.filter(city => 
-    city.nom.toLowerCase().includes(value)
-  );
-
-  if (matches.length === 0) {
-    suggestionsBox.style.display = 'none';
-    Array.from(grid.children).forEach(card => card.style.display = 'none');
-    return;
-  }
-
-  matches.forEach(city => {
-    const div = document.createElement('div');
-    div.textContent = city.nom;
-    div.style.padding = '12px 18px';
-    div.style.cursor = 'pointer';
-    div.style.color = '#222';
-    div.style.fontFamily = 'Montserrat, sans-serif';
-    div.style.fontWeight = '600';
-    div.style.fontSize = '1.08rem';
-    div.style.borderBottom = '1px solid #f3e9d1';
-    
-    div.addEventListener('mousedown', function(e) {
-      e.preventDefault();
-      searchInput.value = city.nom;
-      suggestionsBox.style.display = 'none';
-      // Afficher uniquement la carte de la ville sélectionnée
-      Array.from(grid.children).forEach(card => {
-        const cardName = card.querySelector('h3').textContent.trim().toLowerCase();
-        card.style.display = cardName === city.nom.toLowerCase() ? '' : 'none';
-      });
-    });
-
-    div.addEventListener('mouseover', function() {
-      div.style.background = '#f3e9d1';
-    });
-
-    div.addEventListener('mouseout', function() {
-      div.style.background = '#fff';
-    });
-
-    suggestionsBox.appendChild(div);
-  });
-
-  suggestionsBox.style.display = 'block';
-});
-
-// Fermer les suggestions en cliquant ailleurs
-document.addEventListener('click', function(e) {
-  if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-    suggestionsBox.style.display = 'none';
-  }
-});
-
-// Navigation au clavier dans les suggestions
-searchInput.addEventListener('keydown', function(e) {
-  const suggestions = suggestionsBox.querySelectorAll('div');
-  const currentFocus = Array.from(suggestions).findIndex(el => el.style.background === '#f3e9d1');
-  
-  if (suggestions.length === 0) return;
-  
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    const nextFocus = currentFocus < suggestions.length - 1 ? currentFocus + 1 : 0;
-    suggestions.forEach((s, i) => s.style.background = i === nextFocus ? '#f3e9d1' : '#fff');
-    if (nextFocus >= 0) {
-      searchInput.value = suggestions[nextFocus].textContent;
-    }
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    const nextFocus = currentFocus > 0 ? currentFocus - 1 : suggestions.length - 1;
-    suggestions.forEach((s, i) => s.style.background = i === nextFocus ? '#f3e9d1' : '#fff');
-    if (nextFocus >= 0) {
-      searchInput.value = suggestions[nextFocus].textContent;
-    }
-  } else if (e.key === 'Enter' && currentFocus >= 0) {
-    e.preventDefault();
-    suggestions[currentFocus].click();
-  }
-});
-
 let sliderIndex = 0;
 const sliderImgs = document.querySelectorAll('.slider-img');
 setInterval(() => {
