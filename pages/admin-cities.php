@@ -6,24 +6,47 @@ error_reporting(E_ALL);
 // --- END FORCE ERROR REPORTING --- //
 
 session_start();
-if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
-    header('Location: admin-login.php');
-    exit();
+if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
+    header('Location: login.php');
+    exit;
 }
 
-$pdo = new PDO('mysql:host=localhost;dbname=vmaroc;charset=utf8', 'root', '');
-
-// Feedback messages
-$success = $error = '';
-
-// Display session messages
-if (isset($_SESSION['admin_message'])) {
-    $message = $_SESSION['admin_message'];
-    $message_type = $_SESSION['admin_message_type'] ?? 'info';
-    unset($_SESSION['admin_message']);
-    unset($_SESSION['admin_message_type']);
-    // Echo the message later in the HTML body
+try {
+    $pdo = new PDO("mysql:host=localhost;dbname=vmaroc", "root", "");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    die("Erreur de connexion : " . $e->getMessage());
 }
+
+// Fonctions pour calculer les statistiques
+function getVillesCount($pdo) {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM villes");
+    return $stmt->fetchColumn();
+}
+
+function getRecommandationsCount($pdo) {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM recommandations");
+    return $stmt->fetchColumn();
+}
+
+function getImagesCount($pdo) {
+    $stmt = $pdo->query("SELECT hero_images FROM villes");
+    $total = 0;
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        if (!empty($row['hero_images'])) {
+            $images = array_filter(explode(',', $row['hero_images']));
+            $total += count($images);
+        }
+    }
+    return $total;
+}
+
+// Récupération des statistiques
+$stats = [
+    'villes' => getVillesCount($pdo),
+    'recommandations' => getRecommandationsCount($pdo),
+    'images' => getImagesCount($pdo)
+];
 
 // Initialisation des variables pour l'édition
 $editMode = false;
@@ -35,402 +58,159 @@ $editCity = [
     'hero_images' => ''
 ];
 
-// Ajout d'une ville
+// Traitement des formulaires
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['edit_id']) && $_POST['edit_id'] !== '') {
-        // Modification
-        $id = intval($_POST['edit_id']);
         $nom = trim($_POST['nom']);
-        $photo = trim($_POST['photo']);
         $desc = trim($_POST['description']);
         
-        // --- Refined Hero Images Upload Handling for Edit ---
-        $uploaded_hero_images = []; // Array to store paths of newly uploaded hero images
-        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-        $uploadHeroDir = '../uploads/cities/hero/'; // Directory for city hero images (relative to admin-cities.php)
-        $webAccessibleUploadDir = 'uploads/cities/hero/'; // Web accessible path (relative to root)
-        
-        // Check if files were uploaded for hero_images_upload and if the array structure is as expected
+    if (!empty($nom) && !empty($desc)) {
+        try {
+            $pdo->beginTransaction();
+            
+            // Gestion des images hero
+            $uploaded_hero_images = [];
         if (isset($_FILES['hero_images_upload']) && is_array($_FILES['hero_images_upload']['name'])) {
-             // Filter out empty file inputs (when user doesn't select a file)
-            $valid_files_keys = array_filter(array_keys($_FILES['hero_images_upload']['name']), function($key) {
-                return !empty($_FILES['hero_images_upload']['name'][$key]);
-            });
-
-            if (!empty($valid_files_keys)) {
-                // S'assurer que le dossier existe
-                if (!file_exists($uploadHeroDir)) {
-                    mkdir($uploadHeroDir, 0777, true);
+                $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+                $uploadDir = '../uploads/cities/hero/';
+                
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
                 }
-                // We don't exit here, as upload might still work depending on server config
-
-                foreach ($valid_files_keys as $key) {
-                     // Check for upload errors for the current file
+                
+                foreach ($_FILES['hero_images_upload']['tmp_name'] as $key => $tmp_name) {
                     if ($_FILES['hero_images_upload']['error'][$key] === UPLOAD_ERR_OK) {
                         $filename = $_FILES['hero_images_upload']['name'][$key];
-                        $tempPath = $_FILES['hero_images_upload']['tmp_name'][$key];
-                        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION)); // Use PATHINFO_EXTENSION for compatibility
+                        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
                         if (in_array($ext, $allowed)) {
-                            $new_filename = uniqid('city_hero_', true) . '.' . $ext;
-                            $targetPath = $uploadHeroDir . $new_filename;
-                            $webAccessiblePath = $webAccessibleUploadDir . $new_filename; // Store web accessible path
-
-                            // --- Attempt to move the uploaded file ---
-                            if (move_uploaded_file($tempPath, $targetPath)) {
-                                $uploaded_hero_images[] = $webAccessiblePath; // Save web accessible path
-                                $_SESSION['admin_message'] = "Les images ont été téléchargées avec succès.";
-                                $_SESSION['admin_message_type'] = 'success';
-                            } else {
-                                error_log("[PHP Error] Failed to move uploaded file: " . $tempPath . " to " . $targetPath . " (Error Code: " . $_FILES['hero_images_upload']['error'][$key] . ")");
-                                $_SESSION['admin_message'] = "Erreur lors du déplacement du fichier hero " . htmlspecialchars($filename) . ". Code d'erreur PHP: " . $_FILES['hero_images_upload']['error'][$key];
-                                $_SESSION['admin_message_type'] = 'error';
+                            $newFilename = uniqid('city_hero_', true) . '.' . $ext;
+                            $targetPath = $uploadDir . $newFilename;
+                            
+                            if (move_uploaded_file($tmp_name, $targetPath)) {
+                                $uploaded_hero_images[] = 'uploads/cities/hero/' . $newFilename;
                             }
-                        } else {
-                            $_SESSION['admin_message'] = "Type de fichier non autorisé pour " . htmlspecialchars($filename) . ". Seuls " . implode(', ', $allowed) . " sont autorisés.";
-                            $_SESSION['admin_message_type'] = 'error';
-                        }
-                    } elseif ($_FILES['hero_images_upload']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
-                         // Report other upload errors except NO_FILE for selected files
-                         $_SESSION['admin_message'] = "Erreur lors de l'upload du fichier " . htmlspecialchars($name) . " : Code d'erreur PHP " . $_FILES['hero_images_upload']['error'][$key] . ".";
-                         $_SESSION['admin_message_type'] = 'error';
+                            }
                     }
                 }
-                 // Optional: Add a message if user selected files but none were successfully uploaded
-                if (empty($uploaded_hero_images) && !empty($valid_files_keys)) {
-                     $_SESSION['admin_message'] = "Aucun des fichiers sélectionnés pour le hero n'a pu être téléchargé lors de la modification. Vérifiez les erreurs ci-dessus et les permissions du dossier d'upload.";
-                     $_SESSION['admin_message_type'] = 'error';
-                }
             }
-        }
-        // --- End Refined Hero Images Upload Handling for Edit ---
-
-        // Determine the final hero_images string to save
-        $hero_images_string = '';
-        if (!empty($uploaded_hero_images)) {
-            // If new images were successfully uploaded, use their paths
-            $hero_images_string = implode(',', $uploaded_hero_images);
-        } else {
-            // If no new images were uploaded, keep the existing ones from the database
-            // Fetch the current hero_images value from the database for this city
+            
+            if (isset($_POST['edit_id']) && $_POST['edit_id'] !== '') {
+                // Mode édition
+                $id = intval($_POST['edit_id']);
+                
+                // Récupérer les images existantes
             $stmt = $pdo->prepare("SELECT hero_images FROM villes WHERE id = ?");
             $stmt->execute([$id]);
-            $existing_hero_images = $stmt->fetchColumn();
-            $hero_images_string = $existing_hero_images; // This will be the value from the database (can be null or empty)
+                $existing_images = $stmt->fetchColumn();
+                
+                // Combiner les anciennes et nouvelles images
+                $hero_images = [];
+                if (!empty($existing_images)) {
+                    $hero_images = array_merge($hero_images, explode(',', $existing_images));
         }
-
-        // --- DEBUG: Inspect hero_images_string before UPDATE (Edit) ---
-        error_log("[PHP Debug - EDIT] Final hero_images_string: " . ($hero_images_string ?? 'NULL'));
-        // --- End DEBUG ---
-
-        if ($nom && $desc) {
-            try {
-                $pdo->beginTransaction();
-                
-                // --- MODIFIED: Update query to include hero_images ---
-                $stmt = $pdo->prepare("UPDATE villes SET nom = ?, photo = ?, description = ?, hero_images = ? WHERE id = ?");
-                $stmt->execute([$nom, $photo, $desc, $hero_images_string, $id]);
-                
-                $pdo->commit();
-                // --- MODIFIED: Success message for Edit ---
-                $_SESSION['admin_message'] = "Ville '" . htmlspecialchars($nom) . "' modifiée avec succès !";
-                $_SESSION['admin_message_type'] = 'success';
-                // Redirect to prevent multiple submissions and show message
-                header('Location: admin-cities.php');
-                exit();
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                $_SESSION['admin_message'] = "Erreur lors de la modification de la ville : " . $e->getMessage();
-                $_SESSION['admin_message_type'] = 'error';
-                // Redirect to show error message and keep edit mode
-                header('Location: admin-cities.php?edit=' . $id);
-                exit();
-            }
-        } else {
-            $_SESSION['admin_message'] = "Veuillez remplir tous les champs obligatoires pour modifier une ville.";
-            $_SESSION['admin_message_type'] = 'error';
-            // Redirect to show error message and keep edit mode
-            header('Location: admin-cities.php?edit=' . $id);
-            exit();
-        }
-    } elseif (isset($_POST['nom']) && !isset($_POST['edit_id'])) { // Ensure it's an Add operation
-        // Ajout
-        $nom = trim($_POST['nom']);
-        $photo = trim($_POST['photo']); // Keep this for the main city photo field if you still use it
-        $desc = trim($_POST['description']);
-        // Assuming categories are selected via checkboxes or similar and sent as an array
-        $categories = isset($_POST['categories']) ? (is_array($_POST['categories']) ? $_POST['categories'] : []) : [];
-        
-        // --- Refined Hero Images Upload Handling for Add ---
-        $uploaded_hero_images = [];
-        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-        $uploadHeroDir = '../uploads/cities/hero/'; // Directory for city hero images (relative to admin-cities.php)
-        $webAccessibleUploadDir = 'uploads/cities/hero/'; // Web accessible path (relative to root)
-        
-         // Check if the file input is set and is not empty
-        if (isset($_FILES['hero_images_upload']) && is_array($_FILES['hero_images_upload']['name'])) {
-             // Filter out empty file inputs (when user doesn't select a file)
-            $valid_files_keys = array_filter(array_keys($_FILES['hero_images_upload']['name']), function($key) {
-                return !empty($_FILES['hero_images_upload']['name'][$key]);
-            });
-
-            if (!empty($valid_files_keys)) {
-                
-                // Attempt to create directory if it doesn't exist and set permissions
-                if (!is_dir($uploadHeroDir)) {
-                    if (!mkdir($uploadHeroDir, 0775, true)) {
-                        $_SESSION['admin_message'] = "Erreur critique: Impossible de créer le dossier d'upload pour les images hero ('" . htmlspecialchars($uploadHeroDir) . "') lors de l'ajout. Vérifiez les permissions du serveur.";
-                        $_SESSION['admin_message_type'] = 'error';
-                        // Stop processing if directory cannot be created
-                        header('Location: admin-cities.php');
-                        exit();
-                    }
+                if (!empty($uploaded_hero_images)) {
+                    $hero_images = array_merge($hero_images, $uploaded_hero_images);
                 }
-                // Attempt to set permissions even if directory existed
-                 // Use @ to suppress warnings if permissions cannot be set (e.g., on certain OS/configurations)
-                @chmod($uploadHeroDir, 0775);
-                 // We don't exit here, as upload might still work depending on server config
-
-                foreach ($valid_files_keys as $key) {
-                 // Check if this specific file input had a file selected AND there were no upload errors
-                if (!empty($name) && $_FILES['hero_images_upload']['error'][$key] === UPLOAD_ERR_OK) {
-                        $filename = $_FILES['hero_images_upload']['name'][$key];
-                        $tempPath = $_FILES['hero_images_upload']['tmp_name'][$key];
-                        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION)); // Use PATHINFO_EXTENSION for compatibility
-
-                        if (in_array($ext, $allowed)) {
-                            $new_filename = uniqid('city_hero_', true) . '.' . $ext;
-                            $targetPath = $uploadHeroDir . $new_filename;
-                            $webAccessiblePath = $webAccessibleUploadDir . $new_filename; // Store web accessible path
-
-                            // --- Attempt to move the uploaded file ---
-                            if (move_uploaded_file($tempPath, $targetPath)) {
-                                $uploaded_hero_images[] = $webAccessiblePath; // Save web accessible path
+                $hero_images_string = implode(',', array_filter($hero_images));
+                
+                $stmt = $pdo->prepare("UPDATE villes SET nom = ?, description = ?, hero_images = ? WHERE id = ?");
+                $stmt->execute([$nom, $desc, $hero_images_string, $id]);
+                $_SESSION['admin_message'] = "Ville modifiée avec succès !";
                             } else {
-                               // Log a more detailed error if moving fails
-                                error_log("[PHP Error] Failed to move uploaded file: " . $tempPath . " to " . $targetPath . " (Error Code: " . $_FILES['hero_images_upload']['error'][$key] . ")");
-                                $_SESSION['admin_message'] = "Erreur lors du déplacement du fichier hero " . htmlspecialchars($filename) . " lors de l'ajout. Code d'erreur PHP: " . $_FILES['hero_images_upload']['error'][$key];
-                                $_SESSION['admin_message_type'] = 'error';
-                            }
-                        } else {
-                            $_SESSION['admin_message'] = "Type de fichier non autorisé pour " . htmlspecialchars($filename) . " lors de l'ajout. Seuls " . implode(', ', $allowed) . " sont autorisés.";
-                            $_SESSION['admin_message_type'] = 'error';
-                        }
-                    } elseif ($_FILES['hero_images_upload']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
-                         // Report other upload errors except NO_FILE for selected files
-                         $_SESSION['admin_message'] = "Erreur lors de l'upload du fichier " . htmlspecialchars($name) . " lors de l'ajout : Code d'erreur PHP " . $_FILES['hero_images_upload']['error'][$key] . ".";
-                         $_SESSION['admin_message_type'] = 'error';
-                    }
-                }
-            }
-             // Optional: Add a message if user selected files but none were successfully uploaded
-            if (empty($uploaded_hero_images) && !empty($valid_files_keys)) {
-                 $_SESSION['admin_message'] = "Aucun des fichiers sélectionnés pour le hero n'a pu être téléchargé lors de l'ajout. Vérifiez les erreurs ci-dessus et les permissions du dossier d'upload.";
-                 $_SESSION['admin_message_type'] = 'error';
-            }
-        }
-        // --- End Refined Hero Images Upload Handling for Add ---
-
+                // Mode ajout
         $hero_images_string = implode(',', $uploaded_hero_images);
-
-        // --- DEBUG: Inspect hero_images_string before INSERT (Add) ---
-        error_log("[PHP Debug - ADD] Final hero_images_string: " . ($hero_images_string ?? 'NULL'));
-        // --- End DEBUG ---
-
-        if ($nom && $desc) {
-            try {
-                $pdo->beginTransaction();
-                
-                // Insérer la ville avec hero_images
-                // --- MODIFIED: Insert query to include hero_images ---
-                $stmt = $pdo->prepare("INSERT INTO villes (nom, photo, description, hero_images) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$nom, $photo, $desc, $hero_images_string]);
-                $ville_id = $pdo->lastInsertId();
-                
-                // Ajouter des recommandations par défaut pour chaque catégorie sélectionnée
-                // Note: This part seems to use the single $photo field for recommendation images. Adjust if needed.
-                if (!empty($categories)) {
-                    $recommandationsDefaut = [
-                        'culture' => [
-                            'titre' => 'Visite culturelle de ' . $nom,
-                            'description' => 'Découvrez les sites culturels et historiques de ' . $nom,
-                            'prix_min' => 500,
-                            'prix_max' => 1200,
-                            'duree_min' => 1,
-                            'duree_max' => 2,
-                            'image_url' => $photo
-                        ],
-                        'nature' => [
-                            'titre' => 'Exploration nature à ' . $nom,
-                            'description' => 'Randonnée et découverte des paysages naturels de ' . $nom,
-                            'prix_min' => 600,
-                            'prix_max' => 1500,
-                            'duree_min' => 1,
-                            'duree_max' => 2,
-                            'image_url' => $photo
-                        ],
-                        'gastronomie' => [
-                            'titre' => 'Découverte gastronomique de ' . $nom,
-                            'description' => 'Dégustez les spécialités culinaires locales de ' . $nom,
-                            'prix_min' => 700,
-                            'prix_max' => 1400,
-                            'duree_min' => 1,
-                            'duree_max' => 1,
-                            'image_url' => $photo
-                        ],
-                        'shopping' => [
-                            'titre' => 'Shopping à ' . $nom,
-                            'description' => 'Découvrez les marchés et boutiques d\'artisanat de ' . $nom,
-                            'prix_min' => 400,
-                            'prix_max' => 1000,
-                            'duree_min' => 1,
-                            'duree_max' => 1,
-                            'image_url' => $photo
-                        ],
-                        'plage' => [
-                            'titre' => 'Détente et relaxation à ' . $nom,
-                            'description' => 'Profitez des espaces de détente et de bien-être de ' . $nom,
-                            'prix_min' => 800,
-                            'prix_max' => 1800,
-                            'duree_min' => 1,
-                            'duree_max' => 1,
-                            'image_url' => $photo
-                        ],
-                        'famille' => [
-                            'titre' => 'Activités familiales à ' . $nom,
-                            'description' => 'Découvrez les activités adaptées aux familles à ' . $nom,
-                            'prix_min' => 600,
-                            'prix_max' => 1500,
-                            'duree_min' => 1,
-                            'duree_max' => 2,
-                            'image_url' => $photo
-                        ]
-                    ];
-                    
-                    foreach ($categories as $categorie) {
-                        if (isset($recommandationsDefaut[$categorie])) {
-                            $rec = $recommandationsDefaut[$categorie];
-                            $stmt = $pdo->prepare("INSERT INTO recommandations (ville_id, titre, description, categorie, prix_min, prix_max, duree_min, duree_max, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                            $stmt->execute([
-                                $ville_id,
-                                $rec['titre'],
-                                $rec['description'],
-                                $categorie,
-                                $rec['prix_min'],
-                                $rec['prix_max'],
-                                $rec['duree_min'],
-                                $rec['duree_max'],
-                                $rec['image_url'] // This uses $photo, consider using a hero image path
-                            ]);
-                        }
-                    }
+                $stmt = $pdo->prepare("INSERT INTO villes (nom, description, hero_images) VALUES (?, ?, ?)");
+                $stmt->execute([$nom, $desc, $hero_images_string]);
+                $_SESSION['admin_message'] = "Ville ajoutée avec succès !";
                 }
                 
                 $pdo->commit();
-                // --- MODIFIED: Success message for Add ---
-                $_SESSION['admin_message'] = "Ville '" . htmlspecialchars($nom) . "' ajoutée avec succès !";
                 $_SESSION['admin_message_type'] = 'success';
-                // Rediriger pour éviter la soumission multiple et afficher le message
                 header('Location: admin-cities.php');
                 exit();
             } catch (Exception $e) {
                 $pdo->rollBack();
-                $_SESSION['admin_message'] = "Erreur lors de l'ajout de la ville : " . $e->getMessage();
+            $_SESSION['admin_message'] = "Erreur : " . $e->getMessage();
                 $_SESSION['admin_message_type'] = 'error';
-                // Redirect to show error message
                 header('Location: admin-cities.php');
                 exit();
             }
         } else {
-            $_SESSION['admin_message'] = "Veuillez remplir tous les champs obligatoires pour ajouter une ville.";
+        $_SESSION['admin_message'] = "Veuillez remplir tous les champs obligatoires.";
             $_SESSION['admin_message_type'] = 'error';
-            // Redirect to show error message
             header('Location: admin-cities.php');
             exit();
-        }
     }
 }
 
 // Suppression d'une ville
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
-    // --- MODIFIED: Add try-catch and session messages for Delete and consider file deletion---
     try {
-        $pdo->beginTransaction();
-        // Optional: Delete associated hero image files when deleting a city
+        // Supprimer les fichiers d'images associés
         $stmt = $pdo->prepare("SELECT hero_images FROM villes WHERE id = ?");
         $stmt->execute([$id]);
-        $images_string = $stmt->fetchColumn();
-        if (!empty($images_string)) {
-            $images = explode(',', $images_string);
-            foreach ($images as $img) {
-                $filepath = '../' . trim($img); // Adjust path and trim whitespace
-                // Check if file exists before attempting deletion
-                if (file_exists($filepath) && is_file($filepath)) {
-                    if (unlink($filepath)) {
-                         // Log successful file deletion (optional)
-                         error_log("[PHP Info] Deleted city hero image file: " . $filepath);
-                    } else {
-                        // Log file deletion failure (optional)
-                        error_log("[PHP Warning] Failed to delete city hero image file: " . $filepath);
-                         $_SESSION['admin_message'] = "Avertissement: Impossible de supprimer le fichier image hero ('" . htmlspecialchars($img) . "') pour la ville ID " . $id . ". Vérifiez les permissions du fichier.";
-                         $_SESSION['admin_message_type'] = 'warning';
+        $images = $stmt->fetchColumn();
+        
+        if (!empty($images)) {
+            $image_paths = explode(',', $images);
+            foreach ($image_paths as $path) {
+                if (!empty($path)) {
+                    $full_path = '../' . trim($path);
+                    if (file_exists($full_path)) {
+                        unlink($full_path);
                     }
-                } else if (!empty($img)) {
-                     // Log if file was expected but not found (optional)
-                     error_log("[PHP Warning] City hero image file not found for deletion: " . $filepath . " for city ID " . $id);
                 }
             }
         }
 
         $pdo->prepare("DELETE FROM villes WHERE id = ?")->execute([$id]);
-        $pdo->commit();
         $_SESSION['admin_message'] = "Ville supprimée avec succès !";
         $_SESSION['admin_message_type'] = 'success';
     } catch (Exception $e) {
-        $pdo->rollBack();
-        $_SESSION['admin_message'] = "Erreur lors de la suppression de la ville : " . $e->getMessage();
+        $_SESSION['admin_message'] = "Erreur lors de la suppression : " . $e->getMessage();
         $_SESSION['admin_message_type'] = 'error';
     }
-    // --- END MODIFIED: try-catch and session messages for Delete and consider file deletion---
     header('Location: admin-cities.php');
     exit();
 }
 
-// Suppression d'une image hero individuelle
-if ((isset($_GET['delete_hero_image']) && $_GET['delete_hero_image'] == 1) && isset($_GET['city_id']) && isset($_GET['image_path'])) {
+// Suppression d'une image hero
+if (isset($_GET['delete_hero_image']) && isset($_GET['city_id']) && isset($_GET['image_path'])) {
     $city_id = intval($_GET['city_id']);
     $image_path = urldecode($_GET['image_path']);
     
-    // Récupérer les images hero actuelles
+    try {
+        // Récupérer les images actuelles
     $stmt = $pdo->prepare("SELECT hero_images FROM villes WHERE id = ?");
     $stmt->execute([$city_id]);
-    $hero_images_string = $stmt->fetchColumn();
+        $current_images = $stmt->fetchColumn();
     
-    if ($hero_images_string) {
-        $hero_images = array_map('trim', explode(',', $hero_images_string));
-        
-        // Retirer l'image spécifiée du tableau
-        $hero_images = array_filter($hero_images, function($img) use ($image_path) {
+        if ($current_images) {
+            $images = array_filter(explode(',', $current_images));
+            $images = array_filter($images, function($img) use ($image_path) {
             return trim($img) !== trim($image_path);
         });
         
-        // Mettre à jour la base de données avec la nouvelle liste d'images
-        $new_hero_images = implode(',', $hero_images);
+            // Mettre à jour la base de données
+            $new_images = implode(',', $images);
         $stmt = $pdo->prepare("UPDATE villes SET hero_images = ? WHERE id = ?");
-        $stmt->execute([$new_hero_images, $city_id]);
+            $stmt->execute([$new_images, $city_id]);
         
-        // Supprimer physiquement le fichier (optionnel)
+            // Supprimer le fichier
         $file_path = '../' . $image_path;
         if (file_exists($file_path)) {
-            @unlink($file_path);
+                unlink($file_path);
         }
         
-        $_SESSION['admin_message'] = "L'image a été supprimée avec succès.";
+            $_SESSION['admin_message'] = "Image supprimée avec succès.";
         $_SESSION['admin_message_type'] = 'success';
+        }
+    } catch (Exception $e) {
+        $_SESSION['admin_message'] = "Erreur lors de la suppression de l'image : " . $e->getMessage();
+        $_SESSION['admin_message_type'] = 'error';
     }
     
-    // Rediriger vers la page d'édition
     header('Location: admin-cities.php?edit=' . $city_id);
     exit();
 }
@@ -449,151 +229,1235 @@ if (isset($_GET['edit'])) {
 // Liste des villes
 $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM villes")->fetchAll(PDO::FETCH_ASSOC);
 ?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Admin - Gestion des villes</title>
+    <title>Admin - Gestion des Villes</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../css/montserrat-font.css">
-    <link rel="stylesheet" href="../css/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2D796D;
+            --primary-light: #E6F0EE;
+            --text-dark: #333;
+            --border-radius: 8px;
+            --shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            color: var(--text-dark);
+            line-height: 1.6;
+            padding-top: 80px;
+        }
+
+        .header {
+            background: white;
+            height: 80px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            height: 80px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 3rem;
+        }
+
+        .logo {
+            height: 45px;
+            width: auto;
+        }
+
+        .menu-wrapper {
+            position: relative;
+        }
+
+        .menu-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--primary-color);
+            font-weight: 500;
+            text-decoration: none;
+            font-size: 1.1rem;
+            padding: 0.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .menu-toggle i {
+            font-size: 1.5rem;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: fixed;
+            top: 80px;
+            left: 0;
+            height: calc(100vh - 80px);
+            width: 300px;
+            background: white;
+            z-index: 1000;
+            padding: 2rem;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .dropdown-menu.active {
+            display: block;
+            transform: translateX(0);
+        }
+
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: 80px;
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 80px);
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .menu-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .dropdown-header {
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #E5E7EB;
+        }
+
+        .dropdown-header h2 {
+            color: var(--primary-color);
+            font-size: 1.75rem;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            color: #64748B;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .dropdown-item:hover {
+            color: var(--primary-color);
+        }
+
+        .dropdown-item.active {
+            color: var(--primary-color);
+        }
+
+        .dropdown-item i {
+            font-size: 1.25rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        .dropdown-item span {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .nav-center {
+            display: flex;
+            gap: 2.5rem;
+        }
+
+        .nav-link {
+            color: var(--text-dark);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+
+        .page-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 3rem 0;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .page-description {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .search-box {
+            max-width: 600px;
+            margin: 2rem auto 0;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 3rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .stat-card h3 {
+            font-size: 2.5rem;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .notification {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .notification.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .notification.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        footer {
+            background: white;
+            padding: 1rem 0;
+            text-align: center;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 1200px) {
+            .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 0 1rem;
+            }
+
+            .nav-center {
+                display: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header {
+                padding: 2rem 0;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .section-header i {
+            font-size: 1.2rem;
+        }
+
+        .section-header h2 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .form-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            margin-bottom: 2rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px var(--primary-light);
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .upload-container {
+            border: 2px dashed #ddd;
+            padding: 2rem;
+            text-align: center;
+            border-radius: var(--border-radius);
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-container:hover {
+            border-color: var(--primary-color);
+            background: var(--primary-light);
+        }
+
+        .upload-container i {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .upload-container p {
+            color: #666;
+            margin: 0;
+        }
+
+        .image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: var(--border-radius);
+        }
+
+        .remove-image {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #dc3545;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .table th,
+        .table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            font-weight: 500;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .table td {
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-edit,
+        .btn-delete {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-edit {
+            background: var(--primary-color);
+        }
+
+        .btn-delete {
+            background: #dc3545;
+        }
+
+        .btn-edit:hover {
+            background: #236b5f;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        .place-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .place-thumbnail {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: var(--border-radius);
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            background: var(--primary-light);
+            color: var(--primary-color);
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .description-cell {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .btn-submit {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-submit:hover {
+            background: #236b5f;
+        }
+
+        .btn-cancel {
+            background: #f8f9fa;
+            color: #666;
+            border: 1px solid #ddd;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel:hover {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        @media (max-width: 1200px) {
+            .form-row {
+                grid-template-columns: repeat(2, 1fr);
+        }
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 1rem;
+        }
+
+            .table th,
+            .table td {
+                padding: 0.75rem;
+            }
+        }
+
+        .city-images {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .city-images .place-thumbnail {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .city-images .place-thumbnail:hover {
+            transform: scale(1.1);
+        }
+
+        .more-images {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--border-radius);
+            font-size: 0.8rem;
+        }
+
+        .text-muted {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Style de la modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: block;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.5;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        #currentHeroImage {
+            margin-bottom: 1rem;
+        }
+
+        #currentHeroImage img {
+            max-width: 200px;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .btn-choose-photo {
+            background: #f5f5f5;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .btn-choose-photo:hover {
+            background: #e9e9e9;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .btn-submit:hover {
+            background: #236b5f;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <div class="container header-container">
-            <a href="../index.php" class="logo">
-                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="Maroc Authentique" class="logo-img" style="height:70px;">
-            </a>
-            <ul class="nav-menu">
-                <li><a href="../index.php">Accueil</a></li>
-                <li><a href="../destinations.php">Destinations</a></li>
-                <li><a href="../recommandations.php">Recommandations</a></li>
-            </ul>
-            <div class="auth-buttons">
-                <a href="admin-panel.php" class="btn-outline">Panel Admin</a>
-                <a href="logout.php" class="btn-outline">Déconnexion</a>
+    <div class="menu-overlay" id="menuOverlay"></div>
+    <div class="header">
+        <div class="header-container">
+            <div class="header-left">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc" class="logo">
+                <div class="menu-wrapper">
+                    <button class="menu-toggle" onclick="toggleMenu()">
+                        <i class="fas fa-bars"></i>
+                        <span>Menu</span>
+                    </button>
+                    <div class="dropdown-menu" id="adminMenu">
+                        <div class="dropdown-header">
+                            <h2>Administration</h2>
+            </div>
+                        <a href="admin-cities.php" class="dropdown-item active">
+                            <i class="fas fa-building"></i>
+                            <span>Gérer les villes</span>
+                        </a>
+                        <a href="admin-places.php" class="dropdown-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>Gérer les lieux</span>
+                        </a>
+                        <a href="admin-users.php" class="dropdown-item">
+                            <i class="fas fa-users"></i>
+                            <span>Gérer les utilisateurs</span>
+                        </a>
+                        <a href="admin-reviews.php" class="dropdown-item">
+                            <i class="fas fa-star"></i>
+                            <span>Gérer les avis</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-center">
+                <a href="../index.php" class="nav-link">Accueil</a>
+                <a href="../destinations.php" class="nav-link">Destinations</a>
+                <a href="../recommendations.php" class="nav-link">Recommandations</a>
+        </nav>
+            <div class="admin-actions">
+                <a href="admin-panel.php" class="nav-link">Panel Admin</a>
+                <a href="../logout.php" class="nav-link">Déconnexion</a>
             </div>
         </div>
-    </header>
-    <main class="admin-section" style="margin-top:100px;">
-    <div class="container">
-            <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;">
-                <h2>Gestion des Villes <span id="cityCount" style="font-size:1rem;font-weight:400;color:var(--secondary-color);">(<?php echo count($cities); ?>)</span></h2>
-                <input type="text" id="searchCityInput" placeholder="Rechercher une ville..." style="padding:10px 16px;border:1px solid var(--border-color);border-radius:6px;min-width:220px;">
+    </div>
+
+    <div class="page-header">
+        <div class="container">
+            <h1 class="page-title">Gestion des Villes</h1>
+            <p class="page-description">Gérez facilement les villes et leurs informations depuis cette interface intuitive.</p>
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchCityInput" placeholder="Rechercher une ville..." class="search-input">
             </div>
-            <?php if (!empty($success)): ?>
-                <div class="alert alert-success">
-                    <?php echo $success; ?>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <?php if (isset($_SESSION['admin_message'])): ?>
+                <div class="notification <?= $_SESSION['admin_message_type'] === 'success' ? 'success' : 'error' ?>">
+                    <?= $_SESSION['admin_message'] ?>
                 </div>
+                <?php unset($_SESSION['admin_message']); unset($_SESSION['admin_message_type']); ?>
             <?php endif; ?>
-            <?php if (!empty($error)): ?>
-                <div class="alert alert-error">
-                    <?php echo $error; ?>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                    <i class="fas fa-city"></i>
+                    <h3><?php echo $stats['villes']; ?></h3>
+                    <p>Villes</p>
+            </div>
+            <div class="stat-card">
+                    <i class="fas fa-star"></i>
+                    <h3><?php echo $stats['recommandations']; ?></h3>
+                    <p>Recommandations</p>
                 </div>
-            <?php endif; ?>
-            <div class="form" style="max-width:900px;margin:0 auto 40px auto;">
-                <h3 style="text-align:center;">
-                    <?php echo $editMode ? 'Modifier la ville' : 'Ajouter une ville'; ?>
-                </h3>
-                <form method="post" class="admin-form-flex" enctype="multipart/form-data">
-                    <?php if ($editMode): ?>
-                        <input type="hidden" name="edit_id" value="<?php echo htmlspecialchars($editCity['id']); ?>">
-                    <?php endif; ?>
-                    <div class="form-group">
-                        <input type="text" name="nom" class="form-control" placeholder="Nom de la ville *" required value="<?php echo htmlspecialchars($editCity['nom']); ?>">
+            <div class="stat-card">
+                    <i class="fas fa-images"></i>
+                    <h3><?php echo $stats['images']; ?></h3>
+                    <p>Images</p>
                     </div>
-                    <div class="form-group">
-                        <input type="text" name="photo" class="form-control" placeholder="URL ou nom du fichier photo (ex: marrakech.jpg)" value="<?php echo htmlspecialchars($editCity['photo']); ?>">
-                    </div>
-                    <div class="form-group">
-                        <input type="text" name="description" class="form-control" placeholder="Description *" required value="<?php echo htmlspecialchars($editCity['description']); ?>">
-                    </div>
-                    <div class="form-group" style="flex-basis: 100%;">
-                        <label for="hero_images_upload">Images pour le Hero Slider (plusieurs fichiers possibles) :</label>
-                        <input type="file" name="hero_images_upload[]" id="hero_images_upload" accept="image/*" multiple>
-                        <?php if ($editMode && !empty($editCity['hero_images'])): ?>
-                            <div style="margin-top: 15px; font-size: 0.9em; color: #555;">
-                                <p style="margin-bottom: 10px;"><strong>Images actuelles :</strong></p>
-                                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                                <?php
-                                $current_hero_images = array_map('trim', explode(',', $editCity['hero_images']));
-                                foreach ($current_hero_images as $img_path) {
-                                    if (!empty($img_path)) {
-                                        echo '<div style="position: relative; width: 80px;">';
-                                        echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;">';
-                                        echo '<a href="?delete_hero_image=1&city_id=' . $editCity['id'] . '&image_path=' . urlencode($img_path) . '" onclick="return confirm(\'Supprimer cette image ?\')" style="position: absolute; top: -5px; right: -5px; background: #dc3545; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 12px;"><i class="fas fa-times"></i></a>';
-                                        echo '</div>';
-                                    }
-                                }
-                                ?>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <button type="submit" class="btn-solid" style="min-width:120px;">
-                            <?php echo $editMode ? 'Enregistrer' : 'Ajouter'; ?>
-                        </button>
+                </div>
+
+            <div class="add-section">
+                <div class="section-header">
+                    <i class="fas fa-plus"></i>
+                    <h2><?php echo $editMode ? 'Modifier la ville' : 'Ajouter une ville'; ?></h2>
+                </div>
+                <div class="form-container">
+                    <form method="post" class="city-form" enctype="multipart/form-data">
                         <?php if ($editMode): ?>
-                            <a href="admin-cities.php" class="btn-outline" style="min-width:100px;">Annuler</a>
+                            <input type="hidden" name="edit_id" value="<?php echo htmlspecialchars($editCity['id']); ?>">
                         <?php endif; ?>
-                    </div>
-                </form>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="nom">Nom de la ville</label>
+                                <input type="text" id="nom" name="nom" class="form-control" value="<?php echo htmlspecialchars($editCity['nom']); ?>" required>
+                </div>
+        </div>
+
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <textarea id="description" name="description" class="form-control" rows="4" required><?php echo htmlspecialchars($editCity['description']); ?></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Images de la ville</label>
+                            <div class="upload-container" id="fileUploadArea">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>Glissez et déposez vos images ici, ou<br>cliquez pour sélectionner</p>
+                                <input type="file" name="hero_images_upload[]" id="hero_images" multiple accept="image/*" style="display: none;">
+                            </div>
+                            <div id="imagePreview" class="image-preview">
+                                <?php if ($editMode && !empty($editCity['hero_images'])): ?>
+                                    <?php foreach (explode(',', $editCity['hero_images']) as $image): ?>
+                                        <?php if (!empty(trim($image))): ?>
+                                        <div class="preview-item">
+                                            <img src="../<?php echo htmlspecialchars(trim($image)); ?>" alt="Preview">
+                                            <button type="button" class="remove-image" onclick="removeImage(this, '<?php echo htmlspecialchars(trim($image)); ?>')">
+                                                <i class="fas fa-times"></i>
+                </button>
+                                        </div>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-submit">
+                                <i class="fas fa-save"></i>
+                                <?php echo $editMode ? 'Enregistrer les modifications' : 'Ajouter la ville'; ?>
+                            </button>
+                            <?php if ($editMode): ?>
+                                <a href="admin-cities.php" class="btn-cancel">
+                                    <i class="fas fa-times"></i>
+                                    Annuler
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="section-title">
-                <h3>Liste des villes</h3>
+
+            <div class="list-section">
+                <div class="section-header">
+                    <i class="fas fa-list"></i>
+                    <h2>Liste des villes (<?php echo count($cities); ?> au total)</h2>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="admin-table" id="citiesTable">
+            <div class="table-responsive">
+                    <table class="table">
                     <thead>
                         <tr>
+                                <th>Actions</th>
                             <th>ID</th>
                             <th>Nom</th>
-                            <th>Hero Photos</th>
                             <th>Description</th>
-                            <th>Action</th>
+                                <th>Images</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (empty($cities)): ?>
-                            <tr><td colspan="5" style="text-align:center;color:var(--secondary-color);">Aucune ville enregistrée.</td></tr>
-                        <?php endif; ?>
-                        <?php foreach ($cities as $city): ?>
-                        <tr>
-                            <td data-label="ID"><?php echo $city['id']; ?></td>
-                            <td data-label="Nom"><?php echo htmlspecialchars($city['nom']); ?></td>
-                            <td data-label="Hero Photos">
-                                <?php
-                                $hero_images = [];
-                                if (!empty($city['hero_images'])) {
-                                    $hero_images = array_map('trim', explode(',', $city['hero_images']));
-                                }
-                                if (!empty($hero_images)) {
-                                    foreach ($hero_images as $img_path) {
-                                        if (!empty($img_path)) {
-                                            echo '<img src="../' . htmlspecialchars($img_path) . '" alt="Hero Image" style="width: 40px; height: 40px; object-fit: cover; margin-right: 5px; border-radius: 4px;">';
-                                        }
-                                    }
-                                } else {
-                                    echo '<span style="color:var(--secondary-color);font-size:0.9em;">Aucune</span>';
-                                }
-                                ?>
+                            <?php foreach ($cities as $city): ?>
+                                <tr>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="?edit=<?php echo $city['id']; ?>" class="btn-edit" title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                            <a href="?delete=<?php echo $city['id']; ?>" class="btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette ville ?')" title="Supprimer">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                                        </div>
+                                    </td>
+                                    <td><?php echo $city['id']; ?></td>
+                                    <td><?php echo htmlspecialchars($city['nom']); ?></td>
+                                    <td class="description-cell"><?php echo htmlspecialchars($city['description']); ?></td>
+                                    <td>
+                                        <div class="city-images">
+                                            <?php
+                                            if (!empty($city['hero_images'])) {
+                                                $hero_images = array_filter(explode(',', $city['hero_images']));
+                                                foreach ($hero_images as $index => $image):
+                                                    if ($index < 3 && !empty(trim($image))): // Afficher maximum 3 miniatures
+                                            ?>
+                                                    <img src="../<?php echo htmlspecialchars(trim($image)); ?>" alt="Image <?php echo $index + 1; ?>" class="place-thumbnail">
+                                            <?php
+                                                    endif;
+                                                endforeach;
+                                                if (count($hero_images) > 3) {
+                                                    echo '<span class="more-images">+' . (count($hero_images) - 3) . '</span>';
+                                                }
+                                            } else {
+                                                echo '<span class="text-muted">Aucune image</span>';
+                                            }
+                                            ?>
+                                        </div>
                             </td>
-                            <td data-label="Description"><?php echo htmlspecialchars($city['description']); ?></td>
-                            <td data-label="Action">
-                                <div class="admin-actions">
-                                    <a href="?edit=<?php echo $city['id']; ?>" class="btn-outline" style="padding:4px 12px;font-size:0.9rem;">Modifier</a>
-                                    <a href="?delete=<?php echo $city['id']; ?>" class="btn-delete" style="padding:4px 12px;font-size:0.9rem;" onclick="return confirm('Supprimer cette ville ?')">Supprimer</a>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
+                                </tr>
+                            <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
+            </div>
             </div>
         </div>
-    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2025 VMaroc. Tous droits réservés.</p>
+    </div>
+    </footer>
+
+    <script>
+    function toggleMenu() {
+        const menu = document.getElementById('adminMenu');
+        const overlay = document.getElementById('menuOverlay');
+        menu.classList.toggle('active');
+        overlay.classList.toggle('active');
+        document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : '';
+    }
+
+    // Fermer le menu si on clique sur l'overlay
+    document.getElementById('menuOverlay').addEventListener('click', function() {
+        toggleMenu();
+    });
+
+    // Empêcher la propagation des clics dans le menu
+    document.getElementById('adminMenu').addEventListener('click', function(event) {
+        event.stopPropagation();
+    });
+
+    // Auto-hide notifications after 3 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const notifications = document.querySelectorAll('.notification');
+        notifications.forEach(notification => {
+            setTimeout(() => {
+                notification.style.transition = 'opacity 0.5s ease';
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.remove();
+                }, 500);
+            }, 3000);
+        });
+    });
+    </script>
+
+    <script>
+    // JavaScript pour la gestion des images et le glisser-déposer
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('hero_images');
+    const imagePreview = document.getElementById('imagePreview');
+
+    // Empêcher le comportement par défaut de glisser-déposer
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // Mettre en évidence la zone de dépôt lors du survol
+    ['dragenter', 'dragover'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, () => fileUploadArea.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, () => fileUploadArea.classList.remove('dragover'), false);
+    });
+
+    // Gérer les fichiers déposés
+    fileUploadArea.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+        updateImagePreview(files);
+    }
+
+    // Gérer le clic sur la zone de dépôt
+    fileUploadArea.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // Gérer la sélection de fichiers via le dialogue
+    fileInput.addEventListener('change', function() {
+        updateImagePreview(this.files);
+    });
+
+    // Mettre à jour l'aperçu des images
+    function updateImagePreview(files) {
+        if (!files || files.length === 0) return;
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (!file.type.match('image.*')) continue;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const div = document.createElement('div');
+                div.className = 'preview-item new-upload';
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="Image Preview">
+                    <button type="button" class="preview-remove"><i class="fas fa-times"></i></button>
+                `;
+                imagePreview.appendChild(div);
+                
+                // Ajouter un gestionnaire d'événements pour le bouton de suppression
+                div.querySelector('.preview-remove').addEventListener('click', function() {
+                    div.remove();
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Recherche de villes
+    document.getElementById('searchCityInput').addEventListener('keyup', function() {
+        const searchValue = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#citiesTable tbody tr');
+        
+        rows.forEach(row => {
+            const cityName = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+            const cityDesc = row.querySelector('td:nth-child(5)').textContent.toLowerCase();
+            
+            if (cityName.includes(searchValue) || cityDesc.includes(searchValue)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+    </script>
+
+    <!-- Modal de modification -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Modifier la ville</h3>
+                <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="edit_id" value="">
+
+                <div class="form-group">
+                    <label for="nom">Nom</label>
+                    <input type="text" id="nom" name="nom" class="form-control" required>
+                    </div>
+
+                <div class="form-group">
+                    <label for="photo">Photo</label>
+                    <div class="photo-section">
+                        <div class="current-photo" id="currentPhoto">
+                            <!-- L'image actuelle sera affichée ici -->
+                        </div>
+                        <div class="photo-upload">
+                            <input type="file" id="photoInput" name="photo_file" accept="image/*">
+                            <label for="photoInput">Choisir une nouvelle photo</label>
+                            <button type="button" class="btn-delete-photo" style="display: none;">Supprimer</button>
+                    </div>
+                        <div class="photo-preview" id="photoPreview">
+                            <!-- La prévisualisation de la nouvelle photo sera affichée ici -->
+                        </div>
+                    </div>
+                    <input type="hidden" name="photo" id="photoHidden">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" class="form-control" rows="4" required></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit">Enregistrer les modifications</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    function closeModal() {
+        document.getElementById('editModal').classList.remove('active');
+        window.location.href = 'admin-cities.php';
+    }
+
+    // Gestion de l'upload de l'image hero
+    document.getElementById('heroImageInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const formData = new FormData();
+            formData.append('photo', file);
+            
+            fetch('upload_city_photo.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const currentHeroImage = document.getElementById('currentHeroImage');
+                    currentHeroImage.innerHTML = `<img src="../${data.url}" alt="Hero Image">`;
+                    document.getElementById('heroImagePath').value = data.url;
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Erreur lors de l\'upload de l\'image');
+            });
+        }
+    });
+
+    // Mise à jour de la modal avec les données de la ville
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const cityId = this.getAttribute('href').split('=')[1];
+            console.log('Édition de la ville ID:', cityId);
+            
+            fetch(`get_city.php?id=${cityId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Données reçues:', data);
+                    
+                    // Remplir les champs de la modal
+                    document.querySelector('#editModal input[name="edit_id"]').value = data.id;
+                    document.querySelector('#editModal input[name="nom"]').value = data.nom;
+                    document.querySelector('#editModal textarea[name="description"]').value = data.description;
+                    
+                    // Afficher l'image hero existante
+                    const currentHeroImage = document.getElementById('currentHeroImage');
+                    if (data.hero_images) {
+                        const firstImage = data.hero_images.split(',')[0];
+                        if (firstImage && firstImage.trim()) {
+                            console.log('Hero image trouvée:', firstImage);
+                            currentHeroImage.innerHTML = `<img src="../${firstImage.trim()}" alt="Hero Image">`;
+                            document.getElementById('heroImagePath').value = firstImage.trim();
+                        } else {
+                            console.log('Aucune hero image valide trouvée');
+                            currentHeroImage.innerHTML = '<p>Aucune photo</p>';
+                        }
+                    } else {
+                        console.log('Aucune hero image trouvée');
+                        currentHeroImage.innerHTML = '<p>Aucune photo</p>';
+                    }
+                    
+                    // Afficher la modal
+                    document.getElementById('editModal').classList.add('active');
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la récupération des données:', error);
+                    alert('Erreur lors de la récupération des données de la ville');
+                });
+        });
+    });
+
+    // Fermer la modal quand on clique en dehors
+    document.getElementById('editModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+    </script>
 </body>
-</html> 
+</html>

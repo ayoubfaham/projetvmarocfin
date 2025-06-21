@@ -650,55 +650,10 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </main>
 
     <!-- Footer moderne -->
-    <footer>
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-col">
-                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img" style="height:60px;">
-                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
-                    <!-- Social links supprimés -->
-                </div>
-                <div class="footer-col">
-                    <h3>Liens Rapides</h3>
-                    <ul>
-                        <li><a href="index.php">Accueil</a></li>
-                        <li><a href="destinations.php">Destinations</a></li>
-                        <li><a href="recommendations.php">Recommenadations</a></li>
-                    </ul>
-                </div>
-                <div class="footer-col">
-                    <h3>Villes Populaires</h3>
-                    <ul>
-                        <?php
-                        $popular = ['casablanca', 'marrakech', 'tanger'];
-                        $stmt = $pdo->query("SELECT id, nom FROM villes");
-                        $cities = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                        foreach ($popular as $pop) {
-                            foreach ($cities as $city) {
-                                if (strtolower($city['nom']) === $pop) {
-                                    echo '<li><a href="city.php?id=' . $city['id'] . '">' . htmlspecialchars($city['nom']) . '</a></li>';
-                                    break;
-                                }
-                            }
-                        }
-                        ?>
-                    </ul>
-                </div>
-                <div class="footer-col">
-                    <h3>Contact</h3>
-                    <p>contact@marocauthentique.com</p>
-                    <p>+212 522 123 456</p>
-                </div>
-            </div>
-            <div class="copyright">
-                <p style="font-family: 'Montserrat', sans-serif;">© 2025 Maroc Authentique. Tous droits réservés.</p>
-                <p style="font-family: 'Montserrat', sans-serif; margin-top: 10px;">
-                    <a href="politique-confidentialite.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Politique de confidentialité</a> | 
-                    <a href="conditions-utilisation.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Conditions d'utilisation</a>
-                </p>
-            </div>
-        </div>
-    </footer>
+    <?php include 'includes/footer.php'; ?>
+
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 
     <script>
     // Header hide/show on scroll

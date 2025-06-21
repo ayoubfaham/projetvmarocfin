@@ -422,36 +422,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 
     <!-- Footer -->
-    <footer>
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-col">
-                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
-                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
-                </div>
-                <div class="footer-col">
-                    <h3>Liens Rapides</h3>
-                    <ul>
-                        <li><a href="index.php">Accueil</a></li>
-                        <li><a href="destinations.php">Destinations</a></li>
-                        <li><a href="recommendations.php">Recommandations</a></li>
-                    </ul>
-                </div>
-                <div class="footer-col">
-                    <h3>Contact</h3>
-                    <p>contact@marocauthentique.com</p>
-                    <p>+212 522 123 456</p>
-                </div>
-            </div>
-            <hr>
-            <div class="copyright">
-                <p>© 2025 Maroc Authentique. Tous droits réservés.</p>
-                <p>
-                    <a href="politique-confidentialite.php">Politique de confidentialité</a> |
-                    <a href="conditions-utilisation.php">Conditions d'utilisation</a>
-                </p>
-            </div>
-        </div>
-    </footer>
+    <?php include 'includes/footer.php'; ?>
+
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 </body>
 </html> 

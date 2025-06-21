@@ -104,7 +104,7 @@ $sliderImages = [];
 
 // Si des images hero sont définies, les traiter
 if (!empty($place['hero_images'])) {
-    $heroImages = explode(',', $place['hero_images']);
+    $heroImages = array_filter(array_map('trim', explode(',', $place['hero_images'])));
 
     // Chemin de base pour les images
     $baseImagePath = 'images/';
@@ -121,51 +121,56 @@ if (!empty($place['hero_images'])) {
             return false;
         }
         $files = scandir($dir);
-        return in_array($filename, $files, true);
+        $lowerFilename = strtolower($filename);
+        foreach ($files as $f) {
+            if (strtolower($f) === $lowerFilename) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Parcourir chaque image et vérifier son existence
+    $updatedHeroImages = [];
     foreach ($heroImages as $image) {
         $image = trim($image);
         if (empty($image)) continue;
 
         // Essayer plusieurs chemins possibles
         $finalPath = '';
+        $possiblePaths = [
+            $image,
+            $baseImagePath . $image,
+            $baseImagePath2 . $image,
+            'images/places/' . $image,
+            '../images/places/' . $image,
+            'images/lieux/' . $image,
+            '../images/lieux/' . $image,
+            'images/' . basename($image),
+            '../images/' . basename($image),
+            'images/Barceló Anfa Casablanca/' . basename($image),
+            '../images/Barceló Anfa Casablanca/' . basename($image)
+        ];
 
-        // Essayer avec le chemin direct
-        $testPath = $image;
-        $physicalPath = $_SERVER['DOCUMENT_ROOT'] . '/project 10/' . $testPath;
-        $fileExists = fileExistsCaseInsensitive($physicalPath);
-
-        if ($fileExists) {
-            $finalPath = $testPath;
-        } else {
-            // Essayer avec des chemins alternatifs
-            $altPaths = [
-                $baseImagePath . $image,
-                $baseImagePath2 . $image,
-                'images/places/' . $image,
-                '../images/places/' . $image,
-                'images/lieux/' . $image,
-                '../images/lieux/' . $image,
-                'images/' . $image,
-                '../images/' . $image,
-            ];
-
-            foreach ($altPaths as $altPath) {
-                $altPhysicalPath1 = $_SERVER['DOCUMENT_ROOT'] . '/project 10/' . $altPath;
-                $altPhysicalPath2 = $_SERVER['DOCUMENT_ROOT'] . '/' . $altPath;
-
-                if (fileExistsCaseInsensitive($altPhysicalPath1) || fileExistsCaseInsensitive($altPhysicalPath2)) {
-                    $finalPath = $altPath;
-                    break;
-                }
+        foreach ($possiblePaths as $testPath) {
+            $physicalPath = $_SERVER['DOCUMENT_ROOT'] . '/project10/' . $testPath;
+            if (fileExistsCaseInsensitive($physicalPath)) {
+                $finalPath = '/project10/' . $testPath;
+                $updatedHeroImages[] = $testPath;
+                break;
             }
         }
 
         if (!empty($finalPath)) {
             $sliderImages[] = $finalPath;
         }
+    }
+
+    // Mettre à jour la base de données si des images ont été supprimées ou modifiées
+    if (count($updatedHeroImages) !== count($heroImages)) {
+        $newHeroImages = implode(',', array_unique($updatedHeroImages));
+        $stmt = $pdo->prepare("UPDATE lieux SET hero_images = ? WHERE id = ?");
+        $stmt->execute([$newHeroImages, $placeId]);
     }
 } 
 // Fallback aux anciennes images si hero_images est vide
@@ -321,8 +326,8 @@ if (empty($sliderImages)) {
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            transition: background-image 1.5s ease-in-out;
-            z-index: 1; /* Below content and arrows */
+            transition: opacity 0.3s ease-in-out;
+            z-index: 1;
         }
         .place-hero-pro .hero-content {
             position: relative;
@@ -374,8 +379,8 @@ if (empty($sliderImages)) {
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(rgba(30,30,30,0.5),rgba(30,30,30,0.5));
-            z-index: 1;
+            background: rgba(0, 0, 0, 0.3); /* Ajusté pour une meilleure visibilité */
+            z-index: 2;
         }
         .place-details-grid {
             display: flex;
@@ -510,13 +515,14 @@ if (empty($sliderImages)) {
         }
         .hero {
             min-height: 60vh;
-            height: auto !important;
+            height: 600px; /* Hauteur fixe pour assurer la visibilité */
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
             margin-bottom: 40px;
             overflow: hidden;
+            background-color: #f0f0f0; /* Couleur de fond par défaut */
         }
 
         .hero-background {
@@ -528,7 +534,7 @@ if (empty($sliderImages)) {
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            transition: background-image 1.5s ease-in-out;
+            transition: opacity 0.3s ease-in-out;
             z-index: 1;
         }
 
@@ -538,7 +544,7 @@ if (empty($sliderImages)) {
              left: 0;
              width: 100%;
              height: 100%;
-             background: rgba(0, 0, 0, 0); /* Reduced opacity to make image brighter */
+             background: rgba(0, 0, 0, 0.3); /* Ajusté pour une meilleure visibilité */
              z-index: 2;
         }
 
@@ -986,6 +992,9 @@ if (empty($sliderImages)) {
         <div class="hero-background" id="heroBackground"></div>
         <button class="hero-arrow left-arrow" id="prevHero" aria-label="Image précédente" style="position:absolute;left:24px;top:50%;transform:translateY(-50%);z-index:10;background:rgba(0,0,0,0.3);border:none;border-radius:50%;color:#fff;font-size:2.2rem;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i class="fas fa-chevron-left"></i></button>
         <button class="hero-arrow right-arrow" id="nextHero" aria-label="Image suivante" style="position:absolute;right:24px;top:50%;transform:translateY(-50%);z-index:10;background:rgba(0,0,0,0.3);border:none;border-radius:50%;color:#fff;font-size:2.2rem;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
+        <?php if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] == 1): ?>
+        <button class="delete-image-btn" id="deleteImageBtn" style="position:absolute;top:20px;right:20px;z-index:10;background:rgba(220,53,69,0.8);color:#fff;border:none;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.2rem;"><i class="fas fa-trash"></i></button>
+        <?php endif; ?>
         <div class="hero-overlay"></div>
         <div class="hero-content premium">
             <h1><?= htmlspecialchars($place['nom'] ?? 'Lieu') ?></h1>
@@ -998,36 +1007,121 @@ if (empty($sliderImages)) {
     const heroBg = document.getElementById('heroBackground');
     const prevBtn = document.getElementById('prevHero');
     const nextBtn = document.getElementById('nextHero');
+    const deleteBtn = document.getElementById('deleteImageBtn');
     let heroInterval;
+
     function showHeroImg(idx) {
-        if (!heroBg) return;
-        currentHeroIdx = idx;
-        heroBg.style.backgroundImage = `url('${heroImages[currentHeroIdx]}')`;
-        heroBg.style.backgroundSize = 'cover';
-        heroBg.style.backgroundPosition = 'center';
-        heroBg.style.backgroundRepeat = 'no-repeat';
+        if (!heroBg || heroImages.length === 0) return;
+        
+        // Gérer l'index circulaire
+        currentHeroIdx = (idx + heroImages.length) % heroImages.length;
+        
+        const imagePath = heroImages[currentHeroIdx].startsWith('/project10/') 
+            ? heroImages[currentHeroIdx] 
+            : '/project10/' + heroImages[currentHeroIdx];
+            
+        heroBg.style.opacity = '0';
+        setTimeout(() => {
+            heroBg.style.backgroundImage = `url('${imagePath}')`;
+            heroBg.style.backgroundSize = 'cover';
+            heroBg.style.backgroundPosition = 'center';
+            heroBg.style.backgroundRepeat = 'no-repeat';
+            heroBg.style.opacity = '1';
+        }, 300);
     }
+
     function nextHeroImg() {
-        showHeroImg((currentHeroIdx + 1) % heroImages.length);
+        showHeroImg(currentHeroIdx + 1);
     }
+
     function prevHeroImg() {
-        showHeroImg((currentHeroIdx - 1 + heroImages.length) % heroImages.length);
+        showHeroImg(currentHeroIdx - 1);
     }
+
     function startHeroAuto() {
         stopHeroAuto();
-        heroInterval = setInterval(nextHeroImg, 6000);
+        if (heroImages.length > 1) {
+            heroInterval = setInterval(nextHeroImg, 6000);
+        }
     }
+
     function stopHeroAuto() {
-        clearInterval(heroInterval);
+        if (heroInterval) {
+            clearInterval(heroInterval);
+            heroInterval = null;
+        }
     }
+
+    // Initialisation
     if (heroBg && heroImages.length > 0) {
+        // Ajouter la transition CSS
+        heroBg.style.transition = 'opacity 0.3s ease-in-out';
+        
+        // Afficher la première image
         showHeroImg(0);
-        startHeroAuto();
-        prevBtn.addEventListener('click', () => { prevHeroImg(); startHeroAuto(); });
-        nextBtn.addEventListener('click', () => { nextHeroImg(); startHeroAuto(); });
-        heroBg.addEventListener('mouseenter', stopHeroAuto);
-        heroBg.addEventListener('mouseleave', startHeroAuto);
+        
+        // Démarrer le défilement automatique si il y a plus d'une image
+        if (heroImages.length > 1) {
+            startHeroAuto();
+            
+            // Gestionnaires d'événements pour les boutons
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    prevHeroImg();
+                    startHeroAuto();
+                });
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    nextHeroImg();
+                    startHeroAuto();
+                });
+            }
+            
+            // Arrêter/reprendre le défilement au survol
+            heroBg.addEventListener('mouseenter', stopHeroAuto);
+            heroBg.addEventListener('mouseleave', startHeroAuto);
+        } else {
+            // Cacher les boutons s'il n'y a qu'une seule image
+            if (prevBtn) prevBtn.style.display = 'none';
+            if (nextBtn) nextBtn.style.display = 'none';
+        }
     }
+
+    <?php if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] == 1): ?>
+    // Fonction de suppression d'image pour les administrateurs
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            if (confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) {
+                const currentImage = heroImages[currentHeroIdx];
+                
+                // Créer les données du formulaire
+                const formData = new FormData();
+                formData.append('place_id', <?= $placeId ?>);
+                formData.append('image', currentImage.replace('/project10/', ''));
+
+                // Envoyer la requête
+                fetch('delete_image.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Recharger la page pour mettre à jour le slider
+                        window.location.reload();
+                    } else {
+                        alert('Erreur lors de la suppression de l\'image : ' + (data.message || 'Erreur inconnue'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Une erreur est survenue lors de la suppression de l\'image');
+                });
+            }
+        });
+    }
+    <?php endif; ?>
     </script>
     <?php endif; ?>
 
@@ -1470,86 +1564,9 @@ if (empty($sliderImages)) {
     </main>
 
     <!-- Footer -->
-    <footer>
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-col">
-                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img" style="height:60px;">
-                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
-                    <!-- Social links supprimés -->
-                </div>
-                <div class="footer-col">
-                    <h3>Liens Rapides</h3>
-                    <ul>
-                        <li><a href="index.php">Accueil</a></li>
-                        <li><a href="destinations.php">Destinations</a></li>
-                        <li><a href="recommendations.php">Recommendations</a></li>
-                    </ul>
-                </div>
-                <div class="footer-col">
-                    <h3>Contact</h3>
-                    <p>contact@marocauthentique.com</p>
-                    <p>+212 522 123 456</p>
-                </div>
-            </div>
-            <div class="copyright">
-                <p style="font-family: 'Montserrat', sans-serif;">© 2025 Maroc Authentique. Tous droits réservés.</p>
-                <p style="font-family: 'Montserrat', sans-serif; margin-top: 10px;">
-                    <a href="politique-confidentialite.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Politique de confidentialité</a> | 
-                    <a href="conditions-utilisation.php" style="color: #8B7355; text-decoration: none; font-family: 'Montserrat', sans-serif;">Conditions d'utilisation</a>
-                </p>
-            </div>
-        </div>
-    </footer>
-    <script>
-    let simpleCurrent = 0;
-    const simpleSlides = document.querySelectorAll('.hero-slide-simple');
-    const simpleDots = document.querySelectorAll('.hero-dot-simple');
-    let simpleInterval;
-    function showSimpleSlide(idx) {
-        simpleSlides.forEach((slide, i) => {
-            slide.classList.toggle('active', i === idx);
-            if (simpleDots[i]) simpleDots[i].classList.toggle('active', i === idx);
-        });
-        simpleCurrent = idx;
-    }
-    function nextSimpleSlide() {
-        showSimpleSlide((simpleCurrent + 1) % simpleSlides.length);
-    }
-    function prevSimpleSlide() {
-        showSimpleSlide((simpleCurrent - 1 + simpleSlides.length) % simpleSlides.length);
-    }
-    function goToSimpleSlide(idx) {
-        showSimpleSlide(idx);
-    }
-    function startSimpleAuto() {
-        stopSimpleAuto();
-        simpleInterval = setInterval(nextSimpleSlide, 5000);
-    }
-    function stopSimpleAuto() {
-        clearInterval(simpleInterval);
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        showSimpleSlide(0);
-        if (simpleSlides.length > 1) startSimpleAuto();
-        // Swipe mobile
-        let startX = null;
-        const slider = document.querySelector('.hero-slider-simple');
-        if (slider) {
-            slider.addEventListener('touchstart', e => { startX = e.touches[0].clientX; });
-            slider.addEventListener('touchend', e => {
-                if (startX === null) return;
-                let dx = e.changedTouches[0].clientX - startX;
-                if (Math.abs(dx) > 40) {
-                    if (dx < 0) nextSimpleSlide();
-                    else prevSimpleSlide();
-                }
-                startX = null;
-            });
-            slider.addEventListener('mouseenter', stopSimpleAuto);
-            slider.addEventListener('mouseleave', startSimpleAuto);
-        }
-    });
-    </script>
+    <?php include 'includes/footer.php'; ?>
+
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 </body>
 </html> 

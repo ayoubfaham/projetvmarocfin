@@ -57,3 +57,34 @@ out
 # Misc
 .DS_Store
 Thumbs.db
+
+# Configuration files
+config/database.php
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+
+# Dependencies
+vendor/
+node_modules/
+
+# Uploaded files (if you want to exclude them from git)
+# images/*
+# !images/.gitkeep

@@ -1,20 +1,29 @@
 <?php
 try {
     $host = 'localhost';
+    $dbname = 'vmaroc';
     $username = 'root';
     $password = '';
+    $charset = 'utf8';
     
-    // Connexion initiale sans base de données
-    $pdo = new PDO("mysql:host=$host", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $dsn = "mysql:host=$host;dbname=$dbname;charset=$charset";
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ];
     
-    // Création de la base de données si elle n'existe pas
-    $pdo->exec("CREATE DATABASE IF NOT EXISTS vmaroc");
-    
-    // Connexion à la base de données vmaroc
-    $pdo = new PDO("mysql:host=$host;dbname=vmaroc;charset=utf8", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    $pdo = new PDO($dsn, $username, $password, $options);
+
+    // Vérifier et mettre à jour la structure de la table lieux si nécessaire
+    $pdo->exec("ALTER TABLE lieux ADD COLUMN IF NOT EXISTS hero_images TEXT COMMENT 'Images du lieu séparées par des virgules'");
+    $pdo->exec("ALTER TABLE lieux ADD COLUMN IF NOT EXISTS url_activite VARCHAR(255) COMMENT 'URL de réservation en ligne'");
+    $pdo->exec("ALTER TABLE lieux ADD COLUMN IF NOT EXISTS equipements TEXT COMMENT 'Équipements disponibles'");
+    $pdo->exec("ALTER TABLE lieux ADD COLUMN IF NOT EXISTS boutiques_services TEXT COMMENT 'Services disponibles'");
+    $pdo->exec("ALTER TABLE lieux ADD COLUMN IF NOT EXISTS latitude VARCHAR(50) COMMENT 'Latitude du lieu'");
+    $pdo->exec("ALTER TABLE lieux ADD COLUMN IF NOT EXISTS longitude VARCHAR(50) COMMENT 'Longitude du lieu'");
+    $pdo->exec("ALTER TABLE lieux ADD COLUMN IF NOT EXISTS budget VARCHAR(50) COMMENT 'Budget estimé'");
+    $pdo->exec("ALTER TABLE lieux ADD COLUMN IF NOT EXISTS rating DECIMAL(3,2) DEFAULT 0 COMMENT 'Note moyenne'");
 
     // Création de la table villes si elle n'existe pas
     $pdo->exec("CREATE TABLE IF NOT EXISTS villes (
