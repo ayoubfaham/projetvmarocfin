@@ -39,7 +39,7 @@ try {
         
         if (!empty($searchClauses)) {
             $sql .= " AND (" . implode(' AND ', $searchClauses) . ")";
-    }
+        }
     }
 
     if ($ville_id > 0) {

@@ -1135,29 +1135,29 @@ function updateLieuRating($pdo, $lieu_id) {
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon">
-                <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
                 </div>
                 <div class="stat-content">
-                <h3><?= count($reviews) ?></h3>
-                <p>Avis au total</p>
+                    <h3><?= count($reviews) ?></h3>
+                    <p>Avis au total</p>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
-                <i class="fas fa-users"></i>
+                    <i class="fas fa-users"></i>
                 </div>
                 <div class="stat-content">
-                <h3><?= count($users) ?></h3>
-                <p>Utilisateurs</p>
+                    <h3><?= count($users) ?></h3>
+                    <p>Utilisateurs</p>
                 </div>
-        </div>
+            </div>
             <div class="stat-card">
                 <div class="stat-icon">
-                <i class="fas fa-map-marker-alt"></i>
+                    <i class="fas fa-map-marker-alt"></i>
                 </div>
                 <div class="stat-content">
-                <h3><?= count($places) ?></h3>
-                <p>Lieux</p>
+                    <h3><?= count($places) ?></h3>
+                    <p>Lieux</p>
                 </div>
             </div>
         </div>
