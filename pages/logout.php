@@ -1,6 +1,9 @@
 <?php
 session_start();
+
+// Destruction de la session
 session_destroy();
-header('Location: admin-login.php');
-exit();
-?> 
+ 
+// Redirection vers la page d'accueil
+header('Location: index.php');
+exit; 
