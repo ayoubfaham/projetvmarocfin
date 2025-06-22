@@ -176,7 +176,7 @@ if (empty($cities)) { echo '<div style="color:red;text-align:center;">Aucune vil
             display: flex;
             align-items: center;
             justify-content: center;
-            background: url('../vmaroc1.png') center/cover no-repeat;
+            background: url('images/vmaroc1.png') center/cover no-repeat;
             overflow: hidden;
         }
 

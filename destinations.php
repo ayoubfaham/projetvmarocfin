@@ -358,7 +358,7 @@ $villes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <ul class="nav-menu">
                 <li><a href="index.php">Accueil</a></li>
                 <li><a href="destinations.php">Destinations</a></li>
-                <li><a href="recommendations.php">Recommandations</a></li>
+                <li><a href="recommandations.php">Recommandations</a></li>
             </ul>
             
             <div class="nav-buttons">

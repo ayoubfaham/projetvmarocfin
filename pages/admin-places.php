@@ -2782,18 +2782,18 @@ if (isset($_SESSION['admin_message'])) {
                 <label>Images du lieu</label>
                 <?php if (isset($editPlace) && !empty($editPlace['hero_images'])): ?>
                     <div class="existing-images">
-                        <?php
+                            <?php
                         $images = explode(',', $editPlace['hero_images']);
                         foreach ($images as $index => $image):
                             $image = trim($image);
                             if (!empty($image)):
-                        ?>
+                            ?>
                             <div class="existing-image-item">
                                 <img src="/project10/<?php echo htmlspecialchars($image); ?>" alt="Image <?php echo $index + 1; ?>">
                                 <span class="delete-image" onclick="deleteImage(<?php echo $index; ?>, '<?php echo htmlspecialchars($image); ?>', <?php echo $editPlace['id']; ?>)">
                                     <i class="fas fa-times"></i>
                                 </span>
-                            </div>
+                                </div>
                         <?php
                             endif;
                         endforeach;
@@ -2801,11 +2801,11 @@ if (isset($_SESSION['admin_message'])) {
                     </div>
                 <?php endif; ?>
                 
-                <div class="upload-container" id="uploadContainer">
-                    <i class="fas fa-cloud-upload-alt"></i>
+                    <div class="upload-container" id="uploadContainer">
+                            <i class="fas fa-cloud-upload-alt"></i>
                     <p>Glissez et déposez vos images ici ou <span class="browse-text">parcourir</span></p>
                     <input type="file" id="fileInput" name="hero_images_upload[]" multiple accept="image/*">
-                </div>
+                        </div>
                 <div id="imagePreview" class="image-preview-container"></div>
             </div>
 
