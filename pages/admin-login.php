@@ -7,20 +7,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
 
     try {
-        $stmt = $pdo->prepare("SELECT * FROM utilisateurs WHERE email = ? AND role = 'admin'");
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$login]);
-        $admin = $stmt->fetch();
+        $user = $stmt->fetch();
 
-        if ($admin && password_verify($password, $admin['password'])) {
-        $_SESSION['is_admin'] = true;
-            $_SESSION['admin_id'] = $admin['id'];
-        header('Location: admin-panel.php');
-        exit();
-    } else {
-        $error = "Identifiants incorrects";
+        if ($user && password_verify($password, $user['password'])) {
+            if ($user['role'] === 'admin') {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['user_role'] = $user['role'];
+                header('Location: admin-panel.php');
+                exit();
+            } else {
+                $error = "Vous n'avez pas les permissions pour accéder à cette page.";
+            }
+        } else {
+            $error = "Email ou mot de passe incorrect.";
         }
     } catch (PDOException $e) {
-        $error = "Erreur de connexion à la base de données";
+        $error = "Erreur de connexion à la base de données : " . $e->getMessage();
     }
 }
 ?>

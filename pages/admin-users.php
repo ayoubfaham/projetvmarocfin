@@ -731,7 +731,7 @@ try {
         <div class="users-table">
             <div class="section-header">
                 <i class="fas fa-list"></i>
-                    <h2>Liste des utilisateurs</h2>
+                <h2>Liste des utilisateurs</h2>
                 </div>
             <div style="padding: 1rem;">
                 <table class="table">
@@ -739,10 +739,10 @@ try {
                             <tr>
                                 <th>Actions</th>
                                 <th>ID</th>
-                                <th>Nom</th>
-                                <th>Email</th>
-                                <th>Rôle</th>
-                                <th>Date d'inscription</th>
+                            <th>Nom</th>
+                            <th>Email</th>
+                            <th>Rôle</th>
+                            <th>Date d'inscription</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -761,7 +761,7 @@ try {
                                         </button>
                                     </form>
                                 </div>
-                            </td>
+                                        </td>
                             <td><?php echo isset($user['id']) ? $user['id'] : ''; ?></td>
                             <td><?php echo isset($user['username']) ? htmlspecialchars($user['username']) : ''; ?></td>
                             <td><?php echo isset($user['email']) ? htmlspecialchars($user['email']) : ''; ?></td>

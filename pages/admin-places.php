@@ -89,24 +89,11 @@ try {
 $ville_filter = isset($_GET['ville_id']) ? intval($_GET['ville_id']) : 0;
 $categorie_filter = isset($_GET['categorie']) ? trim($_GET['categorie']) : '';
 
-// Récupérer les filtres
-$search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
-$ville_filter = isset($_GET['ville_id']) ? intval($_GET['ville_id']) : 0;
-$categorie_filter = isset($_GET['categorie']) ? trim($_GET['categorie']) : '';
-
-// Construction de la requête SQL de base
-$sql = "SELECT l.*, v.nom as ville_nom 
-        FROM lieux l 
-        LEFT JOIN villes v ON l.id_ville = v.id 
-        WHERE 1=1";
+// SQL de base
+$sql = "SELECT l.*, v.nom AS ville_nom FROM lieux l LEFT JOIN villes v ON l.id_ville = v.id WHERE 1=1";
 $params = [];
 
-// Ajouter les conditions de filtrage
-if (!empty($_GET['search'])) {
-    $search = '%' . trim($_GET['search']) . '%';
-    $sql .= " AND (l.nom LIKE :search OR l.description LIKE :search)";
-    $params['search'] = $search;
-}
+// Filtres
 
 if (!empty($_GET['ville_id'])) {
     $sql .= " AND l.id_ville = :ville_id";
@@ -143,15 +130,6 @@ try {
 $items_per_page = null;
 $offset = null;
 $filtered_city_name = '';
-
-// --- REMOVED: Database Connection Test Echos ---
-// if ($pdo) {
-//     echo '<div style="color: green; font-weight: bold;">Database connection successful!</div>';
-// } else {
-//     echo '<div style="color: red; font-weight: bold;">Database connection failed!</div>';
-//     // Depending on the error, the script might stop here anyway
-// }
-// --- End REMOVED Database Connection Test Echos ---
 
 // Ajout d'un lieu
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom']) && !isset($_POST['edit_id'])) {
@@ -224,9 +202,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nom']) && !isset($_PO
             exit;
         } else {
             $_SESSION['error'] = implode("<br>", $errors);
+            header("Location: admin-places.php");
+            exit;
         }
     } catch (PDOException $e) {
         $_SESSION['error'] = "Erreur lors de l'ajout du lieu : " . $e->getMessage();
+        header("Location: admin-places.php");
+        exit;
     }
 }
 
@@ -740,7 +722,7 @@ if (isset($_SESSION['admin_message'])) {
         /* Upload Container */
         .upload-container:hover {
             border-color: var(--primary-color);
-            background: var(--light-green);
+            background: rgba(45, 121, 109, 0.05);
         }
 
         .upload-icon {
@@ -946,7 +928,7 @@ if (isset($_SESSION['admin_message'])) {
 
         select.form-control {
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%232D796D'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 1rem center;
             padding-right: 2.5rem;
@@ -2639,10 +2621,6 @@ if (isset($_SESSION['admin_message'])) {
     <div class="page-header">
         <h1>Gestion des Lieux (<?php echo $stats['lieux']; ?>)</h1>
         <p>Gérez facilement les lieux et leurs informations depuis cette interface intuitive.</p>
-        <div class="search-container">
-            <i class="fas fa-search search-icon"></i>
-            <input type="text" class="search-input" placeholder="Rechercher un lieu...">
-    </div>
     </div>
 
     <div class="stats-container">
@@ -2782,18 +2760,18 @@ if (isset($_SESSION['admin_message'])) {
                 <label>Images du lieu</label>
                 <?php if (isset($editPlace) && !empty($editPlace['hero_images'])): ?>
                     <div class="existing-images">
-                        <?php
+                            <?php
                         $images = explode(',', $editPlace['hero_images']);
                         foreach ($images as $index => $image):
                             $image = trim($image);
                             if (!empty($image)):
-                        ?>
+                            ?>
                             <div class="existing-image-item">
                                 <img src="/project10/<?php echo htmlspecialchars($image); ?>" alt="Image <?php echo $index + 1; ?>">
                                 <span class="delete-image" onclick="deleteImage(<?php echo $index; ?>, '<?php echo htmlspecialchars($image); ?>', <?php echo $editPlace['id']; ?>)">
                                     <i class="fas fa-times"></i>
                                 </span>
-                            </div>
+                                </div>
                         <?php
                             endif;
                         endforeach;
@@ -2801,11 +2779,11 @@ if (isset($_SESSION['admin_message'])) {
                     </div>
                 <?php endif; ?>
                 
-                <div class="upload-container" id="uploadContainer">
-                    <i class="fas fa-cloud-upload-alt"></i>
+                    <div class="upload-container" id="uploadContainer">
+                            <i class="fas fa-cloud-upload-alt"></i>
                     <p>Glissez et déposez vos images ici ou <span class="browse-text">parcourir</span></p>
                     <input type="file" id="fileInput" name="hero_images_upload[]" multiple accept="image/*">
-                </div>
+                        </div>
                 <div id="imagePreview" class="image-preview-container"></div>
             </div>
 
@@ -2906,11 +2884,7 @@ if (isset($_SESSION['admin_message'])) {
         </div>
         <div class="filters-section">
             <form method="GET" class="search-filters">
-                <div class="search-box">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" name="search" id="searchInput" class="search-input" placeholder="Rechercher un lieu..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
-                    <i class="fas fa-times clear-search"></i>
-                </div>
+
                 <div class="filters-group">
                     <div class="filter">
                         <i class="fas fa-city"></i>
@@ -3141,288 +3115,107 @@ if (isset($_SESSION['admin_message'])) {
             }
         </style>
 
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const searchInput = document.getElementById('searchInput');
-                const suggestionsBox = document.getElementById('searchSuggestions');
-                const clearSearch = document.querySelector('.clear-search');
-                const filterForm = document.querySelector('.search-filters');
-                let currentFocus = -1;
-
-                // Gérer le clic sur le bouton Réinitialiser
-                filterForm.addEventListener('submit', function(e) {
-                    e.preventDefault(); // Empêcher le rechargement de la page
-                    const formData = new FormData(this);
-                    const params = new URLSearchParams(formData);
-                    
-                    // Mettre à jour l'URL sans recharger la page
-                    const newUrl = window.location.pathname + '?' + params.toString();
-                    window.history.pushState({ path: newUrl }, '', newUrl);
-                    
-                    // Récupérer et afficher les résultats filtrés
-                    fetch('get_filtered_places.php?' + params.toString())
-                        .then(response => response.json())
-                        .then(data => {
-                            updateTableContent(data);
-                        })
-                        .catch(error => {
-                            console.error('Erreur:', error);
-                        });
-                });
-
-                // Fonction pour mettre à jour le contenu du tableau
-                function updateTableContent(places) {
-                    const tableBody = document.querySelector('.table tbody');
-                    const totalCounter = document.querySelector('.table-header h2');
-
-                    if (!places || places.length === 0) {
-                        tableBody.innerHTML = `
+        <?php if (empty($places)): ?>
+            <div class="no-data">
+                <i class="fas fa-info-circle"></i>
+                <p>Aucun lieu n'a été trouvé.</p>
+            </div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="actions-col">Actions</th>
+                            <th class="id-col">ID</th>
+                            <th class="id-col">ID Ville</th>
+                            <th class="name-col">Nom</th>
+                            <th class="category-col">Catégorie</th>
+                            <th class="images-col">Images</th>
+                            <th class="desc-col">Description</th>
+                            <th class="equip-col">Équipements</th>
+                            <th class="coord-col">Coordonnées</th>
+                            <th class="url-col">URL</th>
+                            <th class="budget-col">Budget</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($places as $place): ?>
                             <tr>
-                                <td colspan="11" class="text-center">
-                                    <div class="no-results">
-                                        <i class="fas fa-search"></i>
-                                        <p>Aucun lieu trouvé</p>
+                                <td class="actions-col">
+                                    <div class="action-buttons">
+                                        <a href="?edit=<?php echo $place['id']; ?>" class="btn-action btn-edit" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="javascript:void(0)" onclick="deletePlace(<?php echo $place['id']; ?>, '<?php echo htmlspecialchars($place['nom']); ?>')" class="btn-action btn-delete" title="Supprimer">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </a>
                                     </div>
                                 </td>
-                            </tr>`;
-                        totalCounter.textContent = 'Liste des lieux (0 au total)';
-                        return;
-                    }
-
-                    tableBody.innerHTML = '';
-                    places.forEach(place => {
-                        const heroImages = place.hero_images ? place.hero_images.split(',') : [];
-                        const row = `
-                        <tr>
-                            <td class="actions-col">
-                                <div class="action-buttons">
-                                    <a href="?edit=${place.id}" class="btn-action btn-edit" title="Modifier">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="javascript:void(0)" onclick="deletePlace(${place.id}, '${place.nom}')" class="btn-action btn-delete" title="Supprimer">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </a>
-                                </div>
-                            </td>
-                            <td class="id-col">${place.id}</td>
-                            <td class="id-col">${place.id_ville}</td>
-                            <td class="name-col">
-                                <div class="place-info">
-                                    <span class="place-name">${place.nom}</span>
-                                </div>
-                            </td>
-                            <td class="category-col">
-                                <span class="category-badge ${place.categorie.toLowerCase()}">
-                                    ${place.categorie}
-                                </span>
-                            </td>
-                            <td class="images-col">
-                                ${heroImages.length > 0 ? `
-                                <div class="images-gallery">
-                                    ${heroImages.slice(0, 3).map((image, index) => `
-                                    <div class="image-item">
-                                        <img src="/project10/${image.trim()}" 
-                                             alt="Image ${index + 1}" 
-                                             onclick="openImageModal('/project10/${image.trim()}')"
-                                             title="Cliquez pour agrandir">
+                                <td class="id-col"><?php echo $place['id']; ?></td>
+                                <td class="id-col"><?php echo $place['id_ville']; ?></td>
+                                <td class="name-col">
+                                    <div class="place-info">
+                                        <span class="place-name"><?php echo htmlspecialchars($place['nom']); ?></span>
                                     </div>
-                                    `).join('')}
-                                </div>
-                                ` : '<span class="no-images">Aucune image</span>'}
-                            </td>
-                            <td class="desc-col">${place.description || ''}</td>
-                            <td class="equip-col">
-                                ${place.equipements ? place.equipements + '<br><br>' : ''}
-                                ${place.boutiques_services || ''}
-                            </td>
-                            <td class="coord-col">
-                                ${place.latitude ? place.latitude + ', ' + place.longitude : ''}
-                            </td>
-                            <td class="url-col">
-                                ${place.url_activite ? `
-                                <a href="${place.url_activite}" target="_blank" class="url-link">
-                                    <i class="fas fa-external-link-alt"></i>
-                                </a>
-                                ` : ''}
-                            </td>
-                            <td class="budget-col">${place.budget || ''}</td>
-                        </tr>
-                    `;
-                    tableBody.insertAdjacentHTML('beforeend', row);
-                });
-
-                totalCounter.textContent = `Liste des lieux (${places.length} au total)`;
-            }
-
-            // Fonction pour supprimer un lieu
-            window.deletePlace = function(id, nom) {
-                if (confirm(`Êtes-vous sûr de vouloir supprimer ${nom} ?`)) {
-                    fetch(`delete_place.php?id=${id}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Recharger les données du tableau
-                                const formData = new FormData(filterForm);
-                                const params = new URLSearchParams(formData);
-                                fetch('get_filtered_places.php?' + params.toString())
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        updateTableContent(data);
-                                    });
-                            } else {
-                                alert('Erreur lors de la suppression : ' + data.error);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Erreur:', error);
-                            alert('Erreur lors de la suppression');
-                        });
-                }
-            };
-
-            // Le reste du code existant pour la recherche et les suggestions...
-            // ... (garder tout le code précédent pour les suggestions)
-        });
-    </script>
-
-    <style>
-        /* Styles pour l'indicateur de chargement */
-        .loading-indicator {
-            text-align: center;
-            padding: 2rem;
-            color: #666;
-        }
-
-        .loading-indicator::after {
-            content: '';
-            display: inline-block;
-            width: 1em;
-            height: 1em;
-            border: 2px solid #666;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-left: 0.5rem;
-            vertical-align: middle;
-        }
-
-        .error-message {
-            text-align: center;
-            padding: 2rem;
-            color: #dc3545;
-            background: #fff5f5;
-        }
-
-        .error-message i {
-            margin-right: 0.5rem;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
-
-    <?php if (empty($places)): ?>
-        <div class="no-data">
-            <i class="fas fa-info-circle"></i>
-            <p>Aucun lieu n'a été trouvé.</p>
-        </div>
-    <?php else: ?>
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th class="actions-col">Actions</th>
-                        <th class="id-col">ID</th>
-                        <th class="id-col">ID Ville</th>
-                        <th class="name-col">Nom</th>
-                        <th class="category-col">Catégorie</th>
-                        <th class="images-col">Images</th>
-                        <th class="desc-col">Description</th>
-                        <th class="equip-col">Équipements</th>
-                        <th class="coord-col">Coordonnées</th>
-                        <th class="url-col">URL</th>
-                        <th class="budget-col">Budget</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($places as $place): ?>
-                        <tr>
-                            <td class="actions-col">
-                                <div class="action-buttons">
-                                    <a href="?edit=<?php echo $place['id']; ?>" class="btn-action btn-edit" title="Modifier">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="javascript:void(0)" onclick="deletePlace(<?php echo $place['id']; ?>, '<?php echo htmlspecialchars($place['nom']); ?>')" class="btn-action btn-delete" title="Supprimer">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </a>
-                                </div>
-                            </td>
-                            <td class="id-col"><?php echo $place['id']; ?></td>
-                            <td class="id-col"><?php echo $place['id_ville']; ?></td>
-                            <td class="name-col">
-                                <div class="place-info">
-                                    <span class="place-name"><?php echo htmlspecialchars($place['nom']); ?></span>
-                                </div>
-                            </td>
-                            <td class="category-col">
-                                <?php if (!empty($place['categorie'])): ?>
-                                    <span class="category-badge <?php echo strtolower($place['categorie']); ?>">
-                                        <?php echo htmlspecialchars($place['categorie']); ?>
-                                    </span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="images-col">
-                                <?php 
-                                $heroImages = !empty($place['hero_images']) ? explode(',', $place['hero_images']) : [];
-                                if (!empty($heroImages)): 
-                                ?>
-                                    <div class="images-gallery">
-                                        <?php foreach (array_slice($heroImages, 0, 3) as $index => $image): ?>
-                                            <div class="image-item">
-                                                <img src="/project10/<?php echo trim($image); ?>" 
-                                                     alt="Image <?php echo $index + 1; ?>" 
-                                                     onclick="openImageModal('/project10/<?php echo trim($image); ?>')"
-                                                     title="Cliquez pour agrandir">
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <span class="no-images">Aucune image</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="desc-col"><?php echo htmlspecialchars($place['description'] ?? ''); ?></td>
-                            <td class="equip-col">
-                                <?php 
-                                if (!empty($place['equipements'])) {
-                                    echo htmlspecialchars($place['equipements']) . '<br><br>';
-                                }
-                                if (!empty($place['boutiques_services'])) {
-                                    echo htmlspecialchars($place['boutiques_services']);
-                                }
-                                ?>
-                            </td>
-                            <td class="coord-col">
-                                <?php 
-                                if (!empty($place['latitude']) && !empty($place['longitude'])) {
-                                    echo $place['latitude'] . ', ' . $place['longitude'];
-                                }
-                                ?>
-                            </td>
-                            <td class="url-col">
-                                <?php if (!empty($place['url_activite'])): ?>
-                                    <a href="<?php echo htmlspecialchars($place['url_activite']); ?>" target="_blank" class="url-link">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
-                                <?php endif; ?>
-                            </td>
-                            <td class="budget-col"><?php echo htmlspecialchars($place['budget'] ?? ''); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    <?php endif; ?>
+                                </td>
+                                <td class="category-col">
+                                    <?php if (!empty($place['categorie'])): ?>
+                                        <span class="category-badge <?php echo strtolower($place['categorie']); ?>">
+                                            <?php echo htmlspecialchars($place['categorie']); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="images-col">
+                                    <?php 
+                                    $heroImages = !empty($place['hero_images']) ? explode(',', $place['hero_images']) : [];
+                                    if (!empty($heroImages)): 
+                                    ?>
+                                        <div class="images-gallery">
+                                            <?php foreach (array_slice($heroImages, 0, 3) as $index => $image): ?>
+                                                <div class="image-item">
+                                                    <img src="/project10/<?php echo trim($image); ?>" 
+                                                         alt="Image <?php echo $index + 1; ?>" 
+                                                         onclick="openImageModal('/project10/<?php echo trim($image); ?>')"
+                                                         title="Cliquez pour agrandir">
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="no-images">Aucune image</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="desc-col"><?php echo htmlspecialchars($place['description'] ?? ''); ?></td>
+                                <td class="equip-col">
+                                    <?php 
+                                    if (!empty($place['equipements'])) {
+                                        echo htmlspecialchars($place['equipements']) . '<br><br>';
+                                    }
+                                    if (!empty($place['boutiques_services'])) {
+                                        echo htmlspecialchars($place['boutiques_services']);
+                                    }
+                                    ?>
+                                </td>
+                                <td class="coord-col">
+                                    <?php 
+                                    if (!empty($place['latitude']) && !empty($place['longitude'])) {
+                                        echo $place['latitude'] . ', ' . $place['longitude'];
+                                    }
+                                    ?>
+                                </td>
+                                <td class="url-col">
+                                    <?php if (!empty($place['url_activite'])): ?>
+                                        <a href="<?php echo htmlspecialchars($place['url_activite']); ?>" target="_blank" class="url-link">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="budget-col"><?php echo htmlspecialchars($place['budget'] ?? ''); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
     </div>
     </main>
 
@@ -3509,28 +3302,6 @@ if (isset($_SESSION['admin_message'])) {
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('searchInput');
-            const suggestionsBox = document.getElementById('searchSuggestions');
-            const clearSearch = document.querySelector('.clear-search');
-            let currentFocus = -1;
-
-            // Afficher le bouton de suppression quand il y a du texte
-            searchInput.addEventListener('input', function() {
-                clearSearch.style.display = this.value ? 'block' : 'none';
-                if (this.value.length >= 2) {
-                    fetchSuggestions(this.value);
-                } else {
-                    suggestionsBox.style.display = 'none';
-                }
-            });
-
-            // Effacer la recherche
-            clearSearch.addEventListener('click', function() {
-                searchInput.value = '';
-                this.style.display = 'none';
-                suggestionsBox.style.display = 'none';
-                // Recharger la page sans paramètres de recherche
-                const url = new URL(window.location.href);
                 url.searchParams.delete('search');
                 window.location.href = url.toString();
             });

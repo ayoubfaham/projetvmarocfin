@@ -12,7 +12,6 @@ $lieux = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Récupération de l'ID du lieu depuis l'URL
 $placeId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-
 // Vérifier si la colonne url_activités existe
 $columnExists = false;
 try {

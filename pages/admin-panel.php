@@ -75,23 +75,51 @@ try {
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background: linear-gradient(135deg, #1a4b4e, #2a665a);
             min-height: 100vh;
             color: var(--white);
             overflow-x: hidden;
             position: relative;
+            background: none;
         }
 
-        body::before {
-            content: '';
+        /* Styles pour les images d'arrière-plan dynamiques */
+        .background-images {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80') center/cover;
-            opacity: 0.2;
             z-index: -1;
+        }
+
+        .background-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        .background-image.active {
+            opacity: 0.8;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6));
+            z-index: -1;
+        }
+
+        body::before {
+            display: none;
         }
 
         .header {
@@ -113,6 +141,7 @@ try {
             display: flex;
             align-items: center;
             gap: 3rem;
+            flex: 1;
         }
 
         .logo {
@@ -127,7 +156,10 @@ try {
 
         .nav-links {
             display: flex;
-            gap: 2rem;
+            gap: 3rem;
+            justify-content: center;
+            flex: 2;
+            margin: 0 2rem;
         }
 
         .nav-link {
@@ -136,8 +168,10 @@ try {
             font-weight: 500;
             transition: all 0.3s ease;
             position: relative;
-            font-size: 0.95rem;
+            font-size: 1.1rem;
             opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .nav-link[href*="destinations"] {
@@ -190,6 +224,8 @@ try {
             display: flex;
             align-items: center;
             gap: 2rem;
+            flex: 1;
+            justify-content: flex-end;
         }
 
         .nav-link.logout {
@@ -299,6 +335,8 @@ try {
             display: flex;
             align-items: center;
             position: relative;
+            z-index: 1;
+            padding-bottom: 10rem;
         }
 
         .left-section {
@@ -570,11 +608,12 @@ try {
             }
 
             .nav-links {
-                gap: 1rem;
+                gap: 1.5rem;
+                margin: 0 1rem;
             }
 
             .nav-link {
-                font-size: 0.9rem;
+                font-size: 1rem;
             }
 
             .logo {
@@ -608,20 +647,169 @@ try {
                 top: 52.5%;
             }
         }
+
+        /* Nouveau style pour le footer */
+        footer {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 2rem 0 1rem;
+            margin-top: -8rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 2;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 4rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-col {
+            color: var(--white);
+        }
+
+        .footer-col .logo-img {
+            height: 50px;
+            margin-bottom: 1.5rem;
+            filter: brightness(0) invert(1);
+            transition: transform 0.3s ease;
+        }
+
+        .footer-col .logo-img:hover {
+            transform: scale(1.05);
+        }
+
+        .footer-col p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+            max-width: 300px;
+        }
+
+        .footer-col h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--white);
+        }
+
+        .footer-col ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .footer-col ul li {
+            margin-bottom: 0.8rem;
+        }
+
+        .footer-col ul li a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            position: relative;
+        }
+
+        .footer-col ul li a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .footer-col ul li a:hover {
+            color: var(--accent);
+        }
+
+        .footer-col ul li a:hover::after {
+            width: 100%;
+        }
+
+        .footer-col.contact p {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .footer-col.contact p i {
+            color: var(--accent);
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 2rem 0;
+        }
+
+        .copyright {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+        }
+
+        .copyright a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .copyright a:hover {
+            color: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                text-align: center;
+            }
+
+            .footer-col p {
+                margin: 0 auto;
+            }
+
+            .copyright {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="background-images">
+        <div class="background-image" style="background-image: url('../images/adminpanel.png');"></div>
+        <div class="background-image" style="background-image: url('../images/adminpanel1.png');"></div>
+        <div class="background-image" style="background-image: url('../images/adminpanel2.png');"></div>
+        <div class="background-image" style="background-image: url('../images/adminpanel3.png');"></div>
+    </div>
+    <div class="overlay"></div>
     <header class="header">
         <div class="logo-section">
             <a href="../index.php">
-            <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc" class="logo">
+                <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc" class="logo">
             </a>
             <nav class="nav-links">
                 <a href="../index.php" class="nav-link">Accueil</a>
                 <a href="../destinations.php" class="nav-link">Destinations</a>
                 <a href="../recommandations.php" class="nav-link">Recommandations</a>
             </nav>
-            </div>
+        </div>
         <div class="header-actions">
             <a href="admin-panel.php" class="nav-link active">Panel Admin</a>
             <a href="logout.php" class="nav-link logout">Déconnexion</a>
@@ -684,8 +872,10 @@ try {
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-col">
-                    <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
-                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé.</p>
+                    <a href="../index.php">
+                        <img src="https://i.postimg.cc/g07GgLp5/VMaroc-logo-trf.png" alt="VMaroc Logo" class="logo-img">
+                    </a>
+                    <p>Découvrez les merveilles du Maroc avec VMaroc, votre guide de voyage personnalisé. Une expérience unique pour explorer les trésors cachés du royaume.</p>
                 </div>
                 <div class="footer-col">
                     <h3>Liens Rapides</h3>
@@ -693,12 +883,14 @@ try {
                         <li><a href="../index.php">Accueil</a></li>
                         <li><a href="../destinations.php">Destinations</a></li>
                         <li><a href="../recommandations.php">Recommandations</a></li>
+                        <li><a href="../contact.php">Contact</a></li>
                     </ul>
                 </div>
-                <div class="footer-col">
+                <div class="footer-col contact">
                     <h3>Contact</h3>
-                    <p>contact@marocauthentique.com</p>
-                    <p>+212 522 123 456</p>
+                    <p><i class="fas fa-envelope"></i> contact@marocauthentique.com</p>
+                    <p><i class="fas fa-phone"></i> +212 522 123 456</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Casablanca, Maroc</p>
                 </div>
             </div>
             <hr>
@@ -838,6 +1030,27 @@ try {
                     }
                 });
             });
+
+            // Animation des images d'arrière-plan
+            const backgroundImages = document.querySelectorAll('.background-image');
+            let currentImageIndex = 0;
+
+            function showNextImage() {
+                // Masquer l'image actuelle
+                backgroundImages[currentImageIndex].classList.remove('active');
+                
+                // Passer à l'image suivante
+                currentImageIndex = (currentImageIndex + 1) % backgroundImages.length;
+                
+                // Afficher la nouvelle image
+                backgroundImages[currentImageIndex].classList.add('active');
+            }
+
+            // Afficher la première image
+            backgroundImages[0].classList.add('active');
+
+            // Changer d'image toutes les 5 secondes
+            setInterval(showNextImage, 5000);
         });
     </script>
 </body>

@@ -13,13 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
 
-    $stmt = $pdo->prepare("SELECT * FROM utilisateurs WHERE email = ?");
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user && password_verify($password, $user['password'])) {
         $_SESSION['user_id'] = $user['id'];
-        $_SESSION['user_nom'] = $user['nom'];
+        $_SESSION['username'] = $user['username'];
         $_SESSION['user_role'] = $user['role'] ?? 'user';
 
         if ($user['role'] === 'admin') {
@@ -310,7 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <form method="POST" class="login-form" autocomplete="off">
                 <div class="input-group">
                     <span class="icon"><i class="fas fa-user"></i></span>
-                    <input type="text" name="email" placeholder="Nom d'utilisateur" required>
+                    <input type="email" name="email" placeholder="Email" required>
                 </div>
                 
                 <div class="input-group">

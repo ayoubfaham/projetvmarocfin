@@ -227,7 +227,9 @@ if (isset($_GET['edit'])) {
 }
 
 // Liste des villes
-$cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM villes")->fetchAll(PDO::FETCH_ASSOC);
+$stmt = $pdo->prepare("SELECT id, nom, photo, description, hero_images FROM villes");
+$stmt->execute();
+$cities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -432,35 +434,6 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
             opacity: 0.9;
             max-width: 800px;
             margin: 0 auto;
-        }
-
-        .search-box {
-            max-width: 600px;
-            margin: 2rem auto 0;
-            position: relative;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 1rem 3rem;
-            border: none;
-            border-radius: var(--border-radius);
-            font-size: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            backdrop-filter: blur(5px);
-        }
-
-        .search-input::placeholder {
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: rgba(255, 255, 255, 0.7);
         }
 
         .stats-grid {
@@ -822,7 +795,7 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
         }
 
         .btn-cancel:hover {
-            background: #e9ecef;
+            background: #e9e9e9;
             color: #333;
         }
 
@@ -988,6 +961,23 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
         .btn-submit:hover {
             background: #236b5f;
         }
+
+        .main-content .list-section .table-actions {
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        footer {
+            background: white;
+            padding: 1rem 0;
+            text-align: center;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+        }
     </style>
 </head>
 <body>
@@ -1029,9 +1019,10 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
                 <a href="../destinations.php" class="nav-link">Destinations</a>
                 <a href="../recommendations.php" class="nav-link">Recommandations</a>
         </nav>
-            <div class="admin-actions">
-                <a href="admin-panel.php" class="nav-link">Panel Admin</a>
-                <a href="../logout.php" class="nav-link">Déconnexion</a>
+                <div class="admin-actions">
+                    <a href="admin-panel.php" class="nav-link">Panel Admin</a>
+                    <a href="../logout.php" class="nav-link">Déconnexion</a>
+                </div>
             </div>
         </div>
     </div>
@@ -1040,10 +1031,7 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
         <div class="container">
             <h1 class="page-title">Gestion des Villes</h1>
             <p class="page-description">Gérez facilement les villes et leurs informations depuis cette interface intuitive.</p>
-            <div class="search-box">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="searchCityInput" placeholder="Rechercher une ville..." class="search-input">
-            </div>
+
         </div>
     </div>
 
@@ -1140,9 +1128,9 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
                 <div class="section-header">
                     <i class="fas fa-list"></i>
                     <h2>Liste des villes (<?php echo count($cities); ?> au total)</h2>
-            </div>
-            <div class="table-responsive">
-                    <table class="table">
+                </div>
+                <div class="table-responsive">
+                    <table id="citiesTable" class="table">
                     <thead>
                         <tr>
                                 <th>Actions</th>
@@ -1152,34 +1140,32 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
                                 <th>Images</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="citiesTableBody">
                             <?php foreach ($cities as $city): ?>
                                 <tr>
                                     <td>
                                         <div class="action-buttons">
                                             <a href="?edit=<?php echo $city['id']; ?>" class="btn-edit" title="Modifier">
-                                    <i class="fas fa-edit"></i>
-                                </a>
+                                                <i class="fas fa-edit"></i>
+                                            </a>
                                             <a href="?delete=<?php echo $city['id']; ?>" class="btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette ville ?')" title="Supprimer">
-                                    <i class="fas fa-trash"></i>
-                                </a>
+                                                <i class="fas fa-trash"></i>
+                                            </a>
                                         </div>
                                     </td>
                                     <td><?php echo $city['id']; ?></td>
                                     <td><?php echo htmlspecialchars($city['nom']); ?></td>
-                                    <td class="description-cell"><?php echo htmlspecialchars($city['description']); ?></td>
+                                    <td class="description-cell"><?php echo htmlspecialchars(substr($city['description'], 0, 100)) . (strlen($city['description']) > 100 ? '...' : ''); ?></td>
                                     <td>
                                         <div class="city-images">
                                             <?php
                                             if (!empty($city['hero_images'])) {
                                                 $hero_images = array_filter(explode(',', $city['hero_images']));
-                                                foreach ($hero_images as $index => $image):
-                                                    if ($index < 3 && !empty(trim($image))): // Afficher maximum 3 miniatures
-                                            ?>
-                                                    <img src="../<?php echo htmlspecialchars(trim($image)); ?>" alt="Image <?php echo $index + 1; ?>" class="place-thumbnail">
-                                            <?php
-                                                    endif;
-                                                endforeach;
+                                                foreach (array_slice($hero_images, 0, 3) as $image) {
+                                                    if (!empty(trim($image))) {
+                                                        echo '<img src="../' . htmlspecialchars(trim($image)) . '" alt="Image" class="place-thumbnail">';
+                                                    }
+                                                }
                                                 if (count($hero_images) > 3) {
                                                     echo '<span class="more-images">+' . (count($hero_images) - 3) . '</span>';
                                                 }
@@ -1188,10 +1174,10 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
                                             }
                                             ?>
                                         </div>
-                            </td>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
-                    </tbody>
+                        </tbody>
                 </table>
                 </div>
             </div>
@@ -1200,7 +1186,7 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
 
     <footer>
         <div class="container">
-            <p>© 2025 VMaroc. Tous droits réservés.</p>
+            <p> 2025 VMaroc. Tous droits réservés.</p>
     </div>
     </footer>
 
@@ -1311,19 +1297,45 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
     }
 
     // Recherche de villes
-    document.getElementById('searchCityInput').addEventListener('keyup', function() {
-        const searchValue = this.value.toLowerCase();
-        const rows = document.querySelectorAll('#citiesTable tbody tr');
+    document.addEventListener('DOMContentLoaded', function() {
+        const tableBody = document.getElementById('citiesTableBody');
+        const cities = <?php echo json_encode($cities); ?>;
         
-        rows.forEach(row => {
-            const cityName = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
-            const cityDesc = row.querySelector('td:nth-child(5)').textContent.toLowerCase();
-            
-            if (cityName.includes(searchValue) || cityDesc.includes(searchValue)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
+        cities.forEach(city => {
+            // Image handling
+            const images = city.hero_images ? city.hero_images.split(',').filter(img => img.trim() !== '') : [];
+            let imageHtml = '<span class="text-muted">Aucune image</span>';
+            if (images.length > 0) {
+                imageHtml = '';
+                images.slice(0, 3).forEach(image => {
+                    imageHtml += `<img src="../${image.trim()}" alt="Image" class="place-thumbnail">`;
+                });
+                if (images.length > 3) {
+                    imageHtml += `<span class="more-images">+${images.length - 3}</span>`;
+                }
             }
+
+            // Description handling
+            let description = city.description || '';
+            if (description.length > 100) {
+                description = description.substring(0, 100) + '...';
+            }
+
+            const row = `
+                <tr>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="?edit=${city.id}" class="btn-edit" title="Modifier"><i class="fas fa-edit"></i></a>
+                            <a href="?delete=${city.id}" class="btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette ville ?')" title="Supprimer"><i class="fas fa-trash"></i></a>
+                        </div>
+                    </td>
+                    <td>${city.id}</td>
+                    <td>${city.nom}</td>
+                    <td class="description-cell">${description}</td>
+                    <td><div class="city-images">${imageHtml}</div></td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
         });
     });
     </script>
@@ -1459,5 +1471,7 @@ $cities = $pdo->query("SELECT id, nom, photo, description, hero_images FROM vill
         }
     });
     </script>
+
+    
 </body>
 </html>
